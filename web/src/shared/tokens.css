@@ -7,6 +7,10 @@
 
 /* --- Primitives (theme-agnostic ramps) --- */
 :root {
+  /* Public theme accent hue — overridden at runtime by theme-boot.js /
+     applyServerTheme (paper 160, midnight 250, ...). The semantic accent
+     below resolves through it, so one variable recolors the whole shell. */
+  --accent-hue: 160;
   /* Neutral — "paper/ink", very low chroma, warm tint (95° light / 265° dark) */
   --p-neutral-0:   oklch(98.5% 0.004 95);
   --p-neutral-50:  oklch(95%   0.006 95);
@@ -74,7 +78,7 @@
   --color-text-secondary:   var(--p-neutral-700);
   --color-text-tertiary:    var(--p-neutral-500);
   --color-border:           var(--p-neutral-100);
-  --color-accent:           var(--p-accent-600);
+  --color-accent:           oklch(50% 0.14 var(--accent-hue));
   --color-accent-contrast:  oklch(100% 0 0);
   --color-rating-fill:      var(--p-gold-600);
   --color-danger:           var(--p-danger-500);
@@ -136,7 +140,7 @@
   --color-text-secondary:   var(--p-neutral-300);
   --color-text-tertiary:    oklch(65% 0.012 265); /* override: neutral-500 fails AA on dark */
   --color-border:           oklch(28% 0.015 265);
-  --color-accent:           var(--p-accent-400);
+  --color-accent:           oklch(78% 0.12 var(--accent-hue));
   --color-accent-contrast:  var(--p-neutral-950);
   --color-rating-fill:      var(--p-gold-500);
   --color-danger:           oklch(65% 0.18 25);

@@ -9,6 +9,16 @@
 
 html, body { margin: 0; padding: 0; }
 
+/* Vestibular-safety: under prefers-reduced-motion, crossfade nothing —
+   theme flips land instantly. (Also makes headless screenshots deterministic.) */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    transition: none !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+  }
+}
+
 body {
   background: var(--color-bg-canvas);
   color: var(--color-text-primary);

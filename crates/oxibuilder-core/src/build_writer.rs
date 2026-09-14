@@ -12,7 +12,6 @@ use crate::build_manifest::BuildManifest;
 use crate::builder::{BuildInputs, BuildOutput};
 use sha2::{Digest, Sha256};
 use std::fs;
-use std::io;
 use std::path::Path;
 
 /// Write a completed `BuildOutput` to the filesystem under `out_dir`.

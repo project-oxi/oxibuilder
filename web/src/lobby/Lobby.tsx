@@ -68,6 +68,17 @@ export function Lobby() {
     );
   }
 
+  const hero = (
+    <header className="mb-14 text-center">
+      <h1 className="font-serif text-5xl font-bold tracking-tight text-foreground sm:text-6xl">
+        {manifest.site.name}
+      </h1>
+      {manifest.site.tagline && (
+        <p className="mt-3 text-sm text-subtle">{manifest.site.tagline}</p>
+      )}
+    </header>
+  );
+
   const exts = [...manifest.extensions].sort(
     (a, b) => a.lobby.display_order - b.lobby.display_order,
   );
@@ -75,11 +86,10 @@ export function Lobby() {
   // doc/03 §3.6 — 접근성: reduced-motion 시 canvas → grid 강제 폴백.
   const rawMode = exts[0]?.lobby.display_mode ?? "grid";
   const mode: DisplayMode = reduced && rawMode === "canvas" ? "grid" : rawMode;
-
   if (mode === "list") {
     return (
       <>
-        <h1 className="sr-only">{manifest.site.name}</h1>
+        {hero}
         <div className="overflow-hidden rounded-lg border border-line bg-surface divide-y divide-line">
           {exts.map((ext) => (
             <LobbyRow key={ext.id} ext={ext} lang={lang} />
@@ -95,7 +105,7 @@ export function Lobby() {
   const floating = mode === "canvas";
   return (
     <>
-      <h1 className="sr-only">{manifest.site.name}</h1>
+      {hero}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {exts.map((ext, i) => (
           <LobbyCard

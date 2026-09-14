@@ -52,6 +52,7 @@ impl Default for Config {
                 base_url: "http://127.0.0.1:8787".into(),
                 default_lang: default_lang(),
                 languages: default_languages(),
+                tagline: None,
             },
             server: ServerConfig::default(),
             extensions: ExtensionsConfig::default(),
@@ -71,6 +72,9 @@ pub struct SiteConfig {
     pub default_lang: String,
     #[serde(default = "default_languages")]
     pub languages: Vec<String>,
+    /// Optional one-liner shown under the site name in the public lobby hero.
+    #[serde(default)]
+    pub tagline: Option<String>,
 }
 
 fn default_lang() -> String {

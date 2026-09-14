@@ -10,6 +10,8 @@ export interface ManifestSite {
   languages: string[];
   /** Optional for backward compat with manifests predating the editorial layout. */
   layout?: "shell" | "editorial";
+  /** Optional lobby-hero subtitle (from [site].tagline). */
+  tagline?: string | null;
 }
 
 export interface LobbyConfigInfo {

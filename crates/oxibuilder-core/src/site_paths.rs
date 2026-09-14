@@ -34,6 +34,8 @@ pub struct MutableSiteConfig {
     pub base_url: String,
     pub default_lang: String,
     pub languages: Vec<String>,
+    #[serde(default)]
+    pub tagline: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -159,6 +161,7 @@ impl MutableSiteSettings {
                 base_url: cfg.site.base_url.clone(),
                 default_lang: cfg.site.default_lang.clone(),
                 languages: cfg.site.languages.clone(),
+                tagline: cfg.site.tagline.clone(),
             },
             lobby: MutableLobbyConfig {
                 default_mode: cfg.lobby.default_mode.clone(),
@@ -188,6 +191,7 @@ impl MutableSiteSettings {
                 base_url: self.site.base_url.clone(),
                 default_lang: self.site.default_lang.clone(),
                 languages: self.site.languages.clone(),
+                tagline: self.site.tagline.clone(),
             },
             server: server.clone(),
             extensions: ExtensionsConfig {

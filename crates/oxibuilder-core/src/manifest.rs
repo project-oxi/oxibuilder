@@ -21,6 +21,8 @@ pub struct ManifestSite {
     pub default_lang: String,
     pub languages: Vec<String>,
     pub layout: String,
+    /// Optional lobby-hero subtitle; `None` renders no tagline line.
+    pub tagline: Option<String>,
 }
 
 #[derive(Serialize, Clone)]
@@ -146,6 +148,7 @@ pub async fn assemble(
             default_lang: config.site.default_lang.clone(),
             languages: config.site.languages.clone(),
             layout,
+            tagline: config.site.tagline.clone(),
         },
         extensions: ext_list,
         mounts: manifest_mounts(&config.mounts),
@@ -269,9 +272,11 @@ mod tests {
             default_lang: "en".into(),
             languages: vec!["en".into()],
             layout: "editorial".into(),
+            tagline: Some("personal space".into()),
         };
 
         let value = serde_json::to_value(site).unwrap();
         assert_eq!(value["layout"], "editorial");
+        assert_eq!(value["tagline"], "personal space");
     }
 }

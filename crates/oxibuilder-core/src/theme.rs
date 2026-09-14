@@ -52,10 +52,10 @@ pub const ALL_THEMES: &[ThemeDefinition] = &[
         name_ko: "한밤",
         name_en: "Midnight",
         mode: ThemeMode::Dark,
-        accent_hue: 230.0,
+        accent_hue: 250.0,
         preview_colors: ["#1a1a2e", "#16213e", "#e0e0e0", "#4fc3f7"],
-        description_ko: "깊은 밤하늘, 시안-블루 악센트",
-        description_en: "Deep night sky, cyan-blue accent",
+        description_ko: "깊은 밤하늘, 블루 악센트",
+        description_en: "Deep night sky, blue accent",
     },
     ThemeDefinition {
         id: "sepia",

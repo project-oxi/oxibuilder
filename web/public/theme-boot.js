@@ -37,7 +37,7 @@
     var layoutMeta = document.querySelector('meta[name="oxibuilder-layout"]');
     var layoutId = (layoutMeta && layoutMeta.content) || "shell";
     document.documentElement.dataset.layout = layoutId;
-    var hueByTheme = { paper: "160", midnight: "230", sepia: "70", forest: "155", neon: "290", canvas: "240" };
+    var hueByTheme = { paper: "160", midnight: "250", sepia: "70", forest: "155", neon: "290", canvas: "240" };
     document.documentElement.style.setProperty("--accent-hue", hueByTheme[themeId] || "160");
   } catch (e) {
     document.documentElement.classList.remove("dark");

@@ -145,6 +145,40 @@ export interface BlogPost {
   published_at: string | null;
   created_at: string;
   updated_at: string;
+  category?: string | null;
+  series_id?: number | null;
+  series_order?: number | null;
+}
+
+export interface BlogSeries {
+  id: number;
+  slug: string;
+  title: string;
+  description: string;
+  created_at: string;
+  updated_at: string;
+}
+
+interface BlogSeriesDetail extends BlogSeries {
+  posts: BlogPost[];
+}
+
+/// `oxibuilder build`가 쓰는 data/blog.json — 글 + 시리즈 묶음.
+/// 라이브 모드의 /api/console/blog는 배열을 반환하므로 이 모양은 static 전용.
+interface BlogStaticData {
+  posts: BlogPost[];
+  series: BlogSeries[];
+}
+
+async function loadBlogData(): Promise<BlogStaticData> {
+  if (import.meta.env.VITE_DATA_MODE === 'static') {
+    const hit = collectionCache.get('blog');
+    const p = apiFetch<BlogStaticData>('/blog');
+    if (!hit) collectionCache.set('blog', p);
+    return p;
+  }
+  const posts = await apiFetch<BlogPost[]>('/blog');
+  return { posts, series: [] };
 }
 
 // ─── projects (doc/02 §2.4) ───
@@ -215,19 +249,29 @@ async function loadCollection<T>(segment: string): Promise<T[]> {
   return p;
 }
 
-
-export const fetchBlogPosts = () => apiFetch<BlogPost[]>('/blog');
-// In static mode, /data/blog/<slug>.json is not emitted (the build emits collection-only
-// /data/blog.json). Fetch the collection once and `.find()` the post by slug. In live
-// mode this is just an authenticated HTTP call.
+export async function fetchBlogPosts(): Promise<BlogPost[]> {
+  return (await loadBlogData()).posts;
+}
 export async function fetchBlogPost(slug: string): Promise<BlogPost> {
+  const posts = await fetchBlogPosts();
+  const post = posts.find((p) => p.slug === slug);
+  if (!post) throw new ApiError(404, `blog post not found: ${slug}`);
+  return post;
+}
+export async function fetchBlogSeries(): Promise<BlogSeries[]> {
+  if (import.meta.env.VITE_DATA_MODE === 'static') return (await loadBlogData()).series;
+  return apiFetch<BlogSeries[]>('/blog/series');
+}
+export async function fetchBlogSeriesBySlug(slug: string): Promise<BlogSeriesDetail> {
   if (import.meta.env.VITE_DATA_MODE === 'static') {
-    const posts = await loadCollection<BlogPost>('blog');
-    const post = posts.find((p) => p.slug === slug);
-    if (!post) throw new ApiError(404, `blog post not found: ${slug}`);
-    return post;
+    const series = (await loadBlogData()).series.find((s) => s.slug === slug);
+    if (!series) throw new ApiError(404, `blog series not found: ${slug}`);
+    const posts = (await fetchBlogPosts())
+      .filter((p) => p.series_id === series.id)
+      .sort((a, b) => (a.series_order ?? 1e15) - (b.series_order ?? 1e15));
+    return { ...series, posts };
   }
-  return apiFetch<BlogPost>(`/blog/${slug}`);
+  return apiFetch<BlogSeriesDetail>(`/blog/series/${encodeURIComponent(slug)}`);
 }
 export const fetchProjects = () => apiFetch<Project[]>('/projects');
 // In static mode, /data/projects.json holds `Project[]` (no screenshots). Static-mode

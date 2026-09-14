@@ -28,6 +28,9 @@ const BlogListPage = lazy(() =>
 const BlogPostPage = lazy(() =>
   import("./extensions/blog/BlogPostPage").then((m) => ({ default: m.BlogPostPage })),
 );
+const BlogSeriesPage = lazy(() =>
+  import("./extensions/blog/BlogSeriesPage").then((m) => ({ default: m.BlogSeriesPage })),
+);
 const ProjectsListPage = lazy(() =>
   import("./extensions/projects/ProjectsListPage").then((m) => ({ default: m.ProjectsListPage })),
 );
@@ -90,6 +93,14 @@ function SiteRoutes({ layout }: { layout: Layout }) {
         element={
           <Suspense fallback={<PageFallback />}>
             <BlogListPage />
+          </Suspense>
+        }
+      />
+      <Route
+        path="/blog/series/:slug"
+        element={
+          <Suspense fallback={<PageFallback />}>
+            <BlogSeriesPage />
           </Suspense>
         }
       />

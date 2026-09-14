@@ -74,11 +74,18 @@ impl Extension for BlogExtension {
     }
 
     fn migrations(&self) -> Vec<Migration> {
-        vec![Migration {
-            version: 1,
-            name: "init",
-            sql: include_str!("../migrations/0001_init.sql"),
-        }]
+        vec![
+            Migration {
+                version: 1,
+                name: "init",
+                sql: include_str!("../migrations/0001_init.sql"),
+            },
+            Migration {
+                version: 2,
+                name: "series_category",
+                sql: include_str!("../migrations/0002_series_category.sql"),
+            },
+        ]
     }
 
     fn routes(&self) -> Router {
@@ -91,6 +98,11 @@ impl Extension for BlogExtension {
                     .delete(routes::delete),
             )
             .route("/{slug}/publish", post(routes::publish))
+            .route(
+                "/series",
+                get(routes::series_list).post(routes::series_create),
+            )
+            .route("/series/{slug}", get(routes::series_show))
     }
     async fn seed_sample_data(&self, ctx: &AppState) -> anyhow::Result<()> {
         let exists: (i64,) = sqlx::query_as("SELECT COUNT(*) FROM blog_post WHERE slug = ?1")
@@ -225,6 +237,59 @@ impl BuildExt for BlogExtension {
             });
         }
 
+        // 시리즈 페이지 — 발행 글이 1개 이상인 시리즈만. no-JS 폴백 목록을
+        // 인라인하고 SPA는 /blog/series/{slug} 라우트에서 하이드레이션한다.
+        let series: Vec<model::BlogSeries> = rt.block_on(repo::series_list(db))?;
+        for s in &series {
+            let series_posts: Vec<model::BlogPost> =
+                rt.block_on(repo::series_posts(db, s.id))?;
+            if series_posts.is_empty() {
+                continue;
+            }
+            let items: String = series_posts
+                .iter()
+                .map(|p| {
+                    let date = p.published_at.as_deref().and_then(|s| s.get(..10)).unwrap_or("");
+                    format!(
+                        r#"<li><a href="/blog/{slug}/">{title}</a> <time>{date}</time></li>"#,
+                        slug = html_escape(&p.slug),
+                        title = html_escape(&p.title),
+                        date = date,
+                    )
+                })
+                .collect();
+            let html = format!(
+                r#"<!DOCTYPE html>
+<html lang="{lang}">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{title}</title>
+  <meta property="og:title" content="{title}">
+  <meta property="og:description" content="{excerpt}">
+  <meta property="og:type" content="website">
+  <meta property="og:url" content="/blog/series/{slug}/">
+  <link rel="icon" type="image/png" href="favicon-32.png">
+  <link rel="canonical" href="/blog/series/{slug}/">
+</head>
+<body>
+  <div id="root"><section class="markdown"><h1>{title}</h1><p>{excerpt}</p><ol>{items}</ol></section></div>
+  <script src="/assets/index.js"></script>
+</body>
+</html>
+"#,
+                lang = series_posts[0].lang,
+                title = html_escape(&s.title),
+                excerpt = html_escape(&s.description),
+                slug = html_escape(&s.slug),
+                items = items,
+            );
+            pages.push(StaticPage {
+                path: format!("blog/series/{}/index.html", s.slug),
+                content: html,
+            });
+        }
+
         Ok(pages)
     }
 
@@ -234,7 +299,11 @@ impl BuildExt for BlogExtension {
         rt: &tokio::runtime::Handle,
     ) -> Result<Box<dyn erased_serde::Serialize + Send>, Box<dyn Error + Send + Sync>> {
         let posts: Vec<model::BlogPost> = rt.block_on(repo::list(db, false, None, i64::MAX))?;
-        Ok(Box::new(posts))
+        let series: Vec<model::BlogSeries> = rt.block_on(repo::series_list(db))?;
+        Ok(Box::new(serde_json::json!({
+            "posts": posts,
+            "series": series,
+        })))
     }
 
     fn build_search_docs(
@@ -262,7 +331,6 @@ impl BuildExt for BlogExtension {
         Ok(docs)
     }
 }
-
 /// Body excerpt for search index / OG description.
 fn body_excerpt(body: &str, max_chars: usize) -> String {
     let plain: String = body.chars().filter(|c| !c.is_control()).collect();
@@ -272,4 +340,12 @@ fn body_excerpt(body: &str, max_chars: usize) -> String {
     } else {
         excerpt
     }
+}
+
+/// Minimal HTML text escaping for slugs/titles interpolated into static pages.
+fn html_escape(s: &str) -> String {
+    s.replace('&', "&amp;")
+        .replace('<', "&lt;")
+        .replace('>', "&gt;")
+        .replace('"', "&quot;")
 }

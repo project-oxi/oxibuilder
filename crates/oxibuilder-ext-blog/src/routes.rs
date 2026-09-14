@@ -1,4 +1,4 @@
-use crate::model::{BlogPatch, BlogPost, BlogPostInput, ListQuery};
+use crate::model::{BlogPatch, BlogPost, BlogSeriesDetail, BlogSeriesInput, BlogPostInput, BlogSeries, ListQuery};
 use crate::repo;
 use axum::Json;
 use axum::extract::{Extension, Path, Query};
@@ -44,6 +44,14 @@ pub async fn create(
         ));
     }
     validate_input(&input)?;
+    if let Some(series) = &input.series
+        && repo::series_find_by_slug(&pool.db, series)
+            .await
+            .map_err(ApiError::internal)?
+            .is_none()
+    {
+        return Err(ApiError::validation("series", "series not found"));
+    }
     let base_slug = input
         .slug
         .clone()
@@ -158,4 +166,44 @@ fn not_found(slug: &str) -> ApiError {
         "not_found",
         &format!("blog post '{slug}' not found"),
     )
+}
+
+// ──────────────────── 시리즈 ────────────────────
+
+pub async fn series_list(
+    Extension(pool): Extension<SiteScopedDb>,
+) -> Result<Json<DataEnvelope<Vec<BlogSeries>>>, ApiError> {
+    let series = repo::series_list(&pool.db)
+        .await
+        .map_err(ApiError::internal)?;
+    Ok(Json(DataEnvelope { data: series }))
+}
+
+pub async fn series_create(
+    Extension(pool): Extension<SiteScopedDb>,
+    Json(input): Json<BlogSeriesInput>,
+) -> Result<Json<DataEnvelope<BlogSeries>>, ApiError> {
+    if input.title.trim().is_empty() {
+        return Err(ApiError::validation("title", "title must not be empty"));
+    }
+    let series = repo::series_create(&pool.db, &input)
+        .await
+        .map_err(ApiError::internal)?;
+    Ok(Json(DataEnvelope { data: series }))
+}
+
+pub async fn series_show(
+    Extension(pool): Extension<SiteScopedDb>,
+    Path(slug): Path<String>,
+) -> Result<Json<DataEnvelope<BlogSeriesDetail>>, ApiError> {
+    let series = repo::series_find_by_slug(&pool.db, &slug)
+        .await
+        .map_err(ApiError::internal)?
+        .ok_or_else(|| not_found(&slug))?;
+    let posts = repo::series_posts(&pool.db, series.id)
+        .await
+        .map_err(ApiError::internal)?;
+    Ok(Json(DataEnvelope {
+        data: BlogSeriesDetail { series, posts },
+    }))
 }

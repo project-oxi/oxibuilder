@@ -19,18 +19,19 @@ interface BlogPost {
   title: string;
   body: string;
   lang: string;
-  translation_group_id: number | null;
+  category: string | null;
   tags: string[];
   published_at: string | null;
   created_at: string;
   updated_at: string;
 }
 
-const EMPTY: { title: string; body: string; lang: string; tags: string[] } = {
+const EMPTY: { title: string; body: string; lang: string; tags: string[]; category: string } = {
   title: "",
   body: "",
   lang: "ko",
   tags: [],
+  category: "",
 };
 
 export function BlogTab({ slug }: { slug: string }) {
@@ -59,6 +60,7 @@ export function BlogTab({ slug }: { slug: string }) {
         body: form.body,
         lang: form.lang,
         tags: form.tags,
+        category: form.category.trim() === "" ? null : form.category.trim(),
       };
       if (editing === "new") {
         return contentClient.create<BlogPost>(slug, "blog", payload);
@@ -100,6 +102,7 @@ export function BlogTab({ slug }: { slug: string }) {
       body: post.body ?? "",
       lang: post.lang,
       tags: post.tags ?? [],
+      category: post.category ?? "",
     });
     setError(null);
   };
@@ -228,6 +231,13 @@ export function BlogTab({ slug }: { slug: string }) {
               <option key={c} value={c}>{c}</option>
             ))}
           </select>
+        </DrawerField>
+        <DrawerField label="Category">
+          <Input
+            value={form.category}
+            onChange={(e) => setForm((f) => ({ ...f, category: e.target.value }))}
+            placeholder="e.g. 개발 / 일상 (empty = none)"
+          />
         </DrawerField>
         <DrawerField label="Tags">
           <TagInput value={form.tags} onChange={(tags) => setForm((f) => ({ ...f, tags }))} />

@@ -23,7 +23,7 @@ oxibuilder deploy                                    # GitHub Pages ([deploy.git
 ```
 
 Content commands (write the per-site SQLite DB directly — no console required):
-`oxibuilder blog new|list|publish|rm` · `oxibuilder link add|list|rm` · `oxibuilder project ...`
+`oxibuilder blog new|edit|list|publish|rm` (`new --translation-of <id>` links a translation; `--category`, `--series`/`--order`/`--clear-series`) · `oxibuilder blog series new|list|show` · `oxibuilder link add|list|rm` · `oxibuilder project ...`
 
 Console-required commands:
 `site add|use|list|show|rm` · `mount add|list|rm` · `lobby layout <ext> --mode grid|canvas|list` · `extension enable|disable <name>` · `cache refresh` (GitHub/TMDB/알라딘) · `backup`/`restore` (SQLite snapshot) · `query "SELECT ..."` (read-only SQL) · `schema` (DB schema)
@@ -36,10 +36,11 @@ Graft an external directory (hand-built HTML or another SSG's output) at a URL p
 
 ```bash
 oxibuilder mount add --id portfolio --source ../portfolio/dist --path portfolio \
-  --title-ko 포트폴리오 --title-en Portfolio --desc "Selected work" [--icon 🖼️] [--new-tab]
+  --title-ko 포트폴리오 --title-en Portfolio --desc "Selected work" [--icon 🖼️] [--new-tab] [--raw] [--hidden]
 ```
 
 - Reserved path prefixes (rejected): `assets data media api search s admin lobby theme`.
+- `raw = true` grafts the directory as-is, skipping static-output detection (asset bundles with no `index.html`); `hidden = true` keeps the mount out of the lobby manifest.
 - `source` is relative to `oxibuilder.toml`'s dir (or absolute); stored verbatim, resolved to absolute only at build time.
 - Live example: `a7garden.github.io` mounts `../portfolio/dist` at `/portfolio/`.
 

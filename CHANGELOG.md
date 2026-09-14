@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- **Blog series + categories.** `blog_series` table (migration 0002) with per-post category and series ordering; CLI `blog series new|list|show` plus `--category` / `--series` / `--order` / `--clear-series` on `blog new`/`blog edit`; console `/series` API; the static build emits series pages (only when published posts exist) and `build_data` returns `{posts, series}`; the SPA gains a series page, category filter, and series navigation; the admin BlogTab gains a category input.
+- **Post translations.** `blog new --translation-of <id>` links a post to its original's translation group (the group id is promoted from the original); list and post pages surface language switch links (ko/en).
+- **Raw + hidden mounts.** `[[mounts]]` gained `raw = true` (graft the directory as-is, skipping static-output detection — for asset bundles with no `index.html`) and `hidden = true` (exclude the mount from the lobby manifest).
+
+### Fixed
+- **Blog updates were broken.** Named `:bind` placeholders are a syntax error under sqlx-sqlite; the `ext-blog` repo `update` (and admin PATCH) now uses positional `?` binds (regression test `update_partial_fields_via_positional_binds`).
+- **Movies poster refs.** Multi-segment absolute poster paths (local mounted refs like `/posters/x.jpg`) are no longer fetched as TMDB URLs at build time or prefixed with `image.tmdb.org` in the SPA; only single-segment raw TMDB paths get the `w500`/`w{width}` prefix.
+
 ## [0.10.0] - 2026-08-08
 
 ### Added

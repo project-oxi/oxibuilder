@@ -243,7 +243,9 @@ impl Config {
     }
 
     /// Structural validation of `[[mounts]]`: unique ids/paths, no reserved
-    /// prefixes, no `..`/`.`/absolute paths. Pure (no filesystem access).
+    /// prefixes, no `..`/`.`/absolute paths, and no mount landing on
+    /// `index.html` (which would clobber the SPA lobby). Pure (no filesystem
+    /// access).
     pub fn validate_mounts(&self) -> Result<(), String> {
         let mut ids = std::collections::HashSet::new();
         let mut paths = std::collections::HashSet::new();
@@ -261,6 +263,12 @@ impl Config {
             let top = norm.split('/').next().unwrap();
             if RESERVED_MOUNT_PATHS.contains(&top) {
                 return Err(format!("mount {} uses reserved path prefix: {}", m.id, top));
+            }
+            if norm.ends_with("index.html") {
+                return Err(format!(
+                    "mount {} path must not be an index.html (would clobber the page at that path)",
+                    m.id
+                ));
             }
             if !paths.insert(norm) {
                 return Err(format!("duplicate mount path: {}", m.path));
@@ -484,8 +492,27 @@ description = "Hand-crafted work"
                 raw: false,
             });
         }
+
         let err = cfg.validate_mounts().unwrap_err();
         assert!(err.contains("duplicate mount id"), "{err}");
+    }
+    #[test]
+    fn validate_rejects_index_html_mount_path() {
+        let mut cfg = Config::default();
+        cfg.mounts.push(MountConfig {
+            id: "lobby-clobber".into(),
+            source: "/a".into(),
+            path: "index.html".into(),
+            title_ko: "k".into(),
+            title_en: "e".into(),
+            description: None,
+            icon: None,
+            open_in_new_tab: false,
+            hidden: false,
+            raw: false,
+        });
+        let err = cfg.validate_mounts().unwrap_err();
+        assert!(err.contains("index.html"), "{err}");
     }
 
     #[test]

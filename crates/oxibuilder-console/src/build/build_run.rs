@@ -117,6 +117,9 @@ pub async fn ensure_build_started(
                 // pushed into the SAME BlogExtension instance we'll dispatch.
                 let builders_vec: Vec<Box<dyn oxibuilder_core::builder::BuildExt>> =
                     crate::all_builders_with_image_manifest(manifest.as_ref());
+                // Resolve the extension gate ONCE here (async context) — the
+                // build below runs on a spawn_blocking thread.
+                let inactive = oxibuilder_core::manifest::inactive_extension_ids(&db).await;
                 let db_task = db.clone();
                 let out_task = out_dir.clone();
                 let media_task = media_dir.clone();
@@ -130,6 +133,7 @@ pub async fn ensure_build_started(
                         &builders_vec,
                         &rt,
                         &mpsc_tx,
+                        &inactive,
                     ) {
                         Ok(output) => {
                             let mut inputs = BuildInputs::new(

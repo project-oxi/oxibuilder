@@ -16,22 +16,35 @@ use sqlx::SqlitePool;
 ///
 /// Each extension produces pages, data, and search docs independently.
 /// Errors are collected per-extension and reported with context.
+///
+/// Extensions listed in `inactive` are SKIPPED entirely (no pages, data, or
+/// search docs) — the same gate the live route dispatcher applies. Callers
+/// resolve it with [`crate::manifest::inactive_extension_ids`] while still on
+/// an async context; this fn is fully sync (rayon threads must not `block_on`
+/// from a runtime worker). Before this gate existed, disabled extensions
+/// still emitted static output that silently collided with static mounts
+/// grafted over the same paths (e.g. legacy `/movies` pages mixed with
+/// native `movies/{slug}` shells).
 pub fn build_site(
     db: &SqlitePool,
     builders: &[Box<dyn BuildExt>],
+    inactive: &std::collections::HashSet<String>,
 ) -> Result<BuildOutput, Box<dyn Error + Send + Sync>> {
     use rayon::prelude::*;
-
     // Capture the Tokio runtime handle ONCE here, on the runtime thread (this fn is
     // called from the async `build` command). Rayon worker threads have no runtime
     // bound, so `Handle::current()` inside the closure would panic. Passing the
     // captured handle lets each builder `block_on` its async DB work from any thread.
     let rt = tokio::runtime::Handle::current();
 
-    let results: Vec<Result<ExtBuildOutput, String>> = builders
+
+    let results: Vec<Result<Option<ExtBuildOutput>, String>> = builders
         .par_iter()
         .map(|ext| {
             let ext_id = ext.ext_id();
+            if inactive.contains(ext_id) {
+                return Ok(None);
+            }
             let pages = ext
                 .build_pages(db, &rt)
                 .map_err(|e| format!("[{}] build_pages: {}", ext_id, e))?;
@@ -41,12 +54,12 @@ pub fn build_site(
             let search_docs = ext
                 .build_search_docs(db, &rt)
                 .map_err(|e| format!("[{}] build_search_docs: {}", ext_id, e))?;
-            Ok(ExtBuildOutput {
+            Ok(Some(ExtBuildOutput {
                 ext_id: ext_id.to_string(),
                 pages,
                 data,
                 search_docs,
-            })
+            }))
         })
         .collect();
 
@@ -56,7 +69,8 @@ pub fn build_site(
 
     for result in results {
         match result {
-            Ok(output) => outputs.push(output),
+            Ok(Some(output)) => outputs.push(output),
+            Ok(None) => {}
             Err(e) => errors.push(e),
         }
     }
@@ -95,19 +109,30 @@ pub fn build_site_with_progress(
     builders: &[Box<dyn BuildExt>],
     rt: &tokio::runtime::Handle,
     tx: &tokio::sync::mpsc::Sender<BuildEvent>,
+    inactive: &std::collections::HashSet<String>,
 ) -> Result<BuildOutput, Box<dyn Error + Send + Sync>> {
     use rayon::prelude::*;
 
     let total = builders.len();
     let _ = tx.blocking_send(BuildEvent::BuildStarted { total });
 
-    let results: Vec<Result<ExtBuildOutput, String>> = builders
+
+    let results: Vec<Result<Option<ExtBuildOutput>, String>> = builders
         .par_iter()
         .map(|ext| {
             let ext_id = ext.ext_id();
             let _ = tx.blocking_send(BuildEvent::ExtensionStart {
                 ext_id: ext_id.to_string(),
             });
+            if inactive.contains(ext_id) {
+                // Keep Start/Done pairing so client progress accounting
+                // (done/total) stays consistent; a skipped ext contributes 0 pages.
+                let _ = tx.blocking_send(BuildEvent::ExtensionDone {
+                    ext_id: ext_id.to_string(),
+                    pages: 0,
+                });
+                return Ok(None);
+            }
             let pages = ext
                 .build_pages(db, rt)
                 .map_err(|e| format!("[{}] build_pages: {}", ext_id, e))?;
@@ -122,12 +147,12 @@ pub fn build_site_with_progress(
                 ext_id: ext_id.to_string(),
                 pages: page_count,
             });
-            Ok(ExtBuildOutput {
+            Ok(Some(ExtBuildOutput {
                 ext_id: ext_id.to_string(),
                 pages,
                 data,
                 search_docs,
-            })
+            }))
         })
         .collect();
 
@@ -135,11 +160,11 @@ pub fn build_site_with_progress(
     let mut errors = Vec::new();
     for result in results {
         match result {
-            Ok(output) => outputs.push(output),
+            Ok(Some(output)) => outputs.push(output),
+            Ok(None) => {}
             Err(e) => errors.push(e),
         }
     }
-
     if !errors.is_empty() {
         let error = format!("Build errors:\n{}", errors.join("\n"));
         let _ = tx.blocking_send(BuildEvent::BuildFailed {
@@ -221,6 +246,7 @@ pub async fn run_image_pre_pass(
     };
 
     let refs = collect_media_refs(&bodies);
+    let inactive = crate::manifest::inactive_extension_ids(db).await;
 
     // Collect external image URLs from every extension. The hook is SYNC but
     // internally calls `rt.block_on(async { ... })` (movies lib.rs:473, books
@@ -237,6 +263,9 @@ pub async fn run_image_pre_pass(
     let external: Vec<String> = tokio::task::block_in_place(|| {
         let mut out: Vec<String> = Vec::new();
         for b in builders {
+            if inactive.contains(b.ext_id()) {
+                continue;
+            }
             match b.external_image_urls(db, rt) {
                 Ok(urls) => out.extend(urls),
                 Err(e) => {

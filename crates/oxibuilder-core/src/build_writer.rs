@@ -12,6 +12,7 @@ use crate::build_manifest::BuildManifest;
 use crate::builder::{BuildInputs, BuildOutput};
 use sha2::{Digest, Sha256};
 use std::fs;
+use std::io;
 use std::path::Path;
 
 /// Write a completed `BuildOutput` to the filesystem under `out_dir`.
@@ -40,12 +41,15 @@ pub fn write_build_output(
     media_dir: &Path,
     inputs: &BuildInputs,
 ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
-    // 1. Clean or create output directory.
+    // 1. Clean or create output directory, then drop the GitHub Pages marker:
+    //    without `.nojekyll`, Pages runs Jekyll, which silently DISCARDS every
+    //    `_`-prefixed directory (e.g. a legacy `/_astro` asset mount) → 404s.
+    //    Harmless on non-Pages hosts; same rationale as the `404.html` copy.
     if out_dir.exists() {
         fs::remove_dir_all(out_dir)?;
     }
     fs::create_dir_all(out_dir)?;
-
+    fs::write(out_dir.join(".nojekyll"), "")?;
     // 2. Derive deployment_base from site.base_url (the SINGLE derivation site).
     let deployment_base = BuildManifest::from_site_base(
         &inputs.site_base_url,
@@ -214,7 +218,24 @@ pub fn write_build_output(
     //      here (a mount was configured but its directory is gone).
     for mount in &inputs.mounts {
         let dst = out_dir.join(&mount.path);
-        copy_dir_recursive(&mount.source, &dst).map_err(|e| {
+        let copy_result: Result<(), Box<dyn std::error::Error + Send + Sync>> =
+            if mount.source.is_file() {
+                // Single-file mount (e.g. grafting a legacy favicon.svg at the
+                // output root). `path` IS the destination file name.
+                match dst.parent() {
+                    Some(parent) => fs::create_dir_all(parent)
+                        .and_then(|()| fs::copy(&mount.source, &dst).map(|_| ()))
+                        .map_err(|e| e.into()),
+                    None => Err(format!(
+                        "mount path has no parent directory: {}",
+                        mount.path
+                    )
+                    .into()),
+                }
+            } else {
+                copy_dir_recursive(&mount.source, &dst)
+            };
+        copy_result.map_err(|e| {
             let msg = format!(
                 "static mount '{}' (from {}): {e}",
                 mount.path,
@@ -222,6 +243,21 @@ pub fn write_build_output(
             );
             Box::<dyn std::error::Error + Send + Sync>::from(msg)
         })?;
+    }
+
+    // 10d. Lint grafted mounts: a mounted page referencing a root-absolute
+    //      path (`/_astro/x.css`) that nothing in the build provides will
+    //      404 in production — the classic legacy-SSG graft whose shared
+    //      assets live at the source site root. Surface it at build time
+    //      instead of as silent breakage.
+    for (mount_path, missing) in unresolved_mount_refs(out_dir, &inputs.mounts) {
+        eprintln!(
+            "  warning: mounted pages under /{mount_path}/ reference assets no build step provides: {}",
+            missing.join(", ")
+        );
+        eprintln!(
+            "           graft the missing directory too: `oxibuilder mount add --id <name> --source <dir> --path <segment> --raw --hidden`"
+        );
     }
 
     // 11. Compute the final asset revision over the materialized output and
@@ -537,9 +573,96 @@ fn copy_derived_into(
     Ok(())
 }
 
+/// Scan every HTML page grafted from static mounts for root-absolute
+/// `="/..."` attribute references whose first path segment is not provided
+/// anywhere in the materialized `out/` tree. References inside the mount's
+/// own prefix are excluded — the mount ships those. Returns one
+/// `(mount_path, urls)` pair per mount with findings; `urls` sorted+deduped.
+fn unresolved_mount_refs(
+    out_dir: &Path,
+    mounts: &[crate::builder::MountCopy],
+) -> Vec<(String, Vec<String>)> {
+    let mut findings = Vec::new();
+    for mount in mounts {
+        let root = out_dir.join(&mount.path);
+        if !root.is_dir() {
+            continue;
+        }
+        let mut html_files = Vec::new();
+        let mut stack = vec![root];
+        while let Some(dir) = stack.pop() {
+            let entries = match fs::read_dir(&dir) {
+                Ok(entries) => entries,
+                Err(_) => continue,
+            };
+            for entry in entries.flatten() {
+                let path = entry.path();
+                if path.is_dir() {
+                    stack.push(path);
+                } else if path.extension().and_then(|e| e.to_str()) == Some("html") {
+                    html_files.push(path);
+                }
+            }
+        }
+        html_files.sort();
+        let mount_prefix = mount.path.trim_matches('/');
+        let mut missing: Vec<String> = Vec::new();
+        for file in html_files {
+            let content = match fs::read_to_string(&file) {
+                Ok(content) => content,
+                Err(_) => continue,
+            };
+            for url in root_abs_attrs(&content) {
+                let seg = url.trim_start_matches('/').split('/').next().unwrap_or("");
+                if seg.is_empty() || seg == mount_prefix {
+                    continue;
+                }
+                if !out_dir.join(seg).exists() && !missing.contains(&url) {
+                    missing.push(url);
+                }
+            }
+        }
+        if !missing.is_empty() {
+            missing.sort();
+            findings.push((mount.path.clone(), missing));
+        }
+    }
+    findings
+}
+
+/// Extract `="/..."` attribute values (href/src/srcset alike) — manual scan,
+/// same no-regex discipline as `build::collect_media_refs`. Protocol-relative
+/// `="//` values are skipped.
+fn root_abs_attrs(html: &str) -> Vec<String> {
+    let bytes = html.as_bytes();
+    let mut urls = Vec::new();
+    let mut i = 0;
+    while i + 2 < bytes.len() {
+        if bytes[i] == b'=' && bytes[i + 1] == b'"' && bytes[i + 2] == b'/' {
+            match html[i + 3..].find('"') {
+                Some(end_off) => {
+                    let end = i + 3 + end_off;
+                    if bytes[i + 3] != b'/' {
+                        urls.push(html[i + 2..end].to_string());
+                    }
+                    i = end;
+                }
+                None => break,
+            }
+        } else {
+            i += 1;
+        }
+    }
+    urls
+}
 #[cfg(test)]
 mod tests {
-    use super::{absolute_site_base, replace_meta};
+    use super::{
+        absolute_site_base, replace_meta, root_abs_attrs, unresolved_mount_refs,
+        write_build_output,
+    };
+    use crate::builder::{BuildInputs, BuildOutput};
+    use std::fs;
 
     #[test]
     fn replace_meta_swaps_content() {
@@ -580,5 +703,72 @@ mod tests {
     #[test]
     fn absolute_base_invalid_url_falls_back_to_path() {
         assert_eq!(absolute_site_base("not a url", "/"), "/");
+    }
+    #[test]
+    fn root_abs_attrs_extracts_and_skips_protocol_relative() {
+        let html = r#"<link href="/_astro/a.css"><script src="/assets/x.js"><a href="//cdn.example/x"><img src="/logo.png">"#;
+        assert_eq!(
+            root_abs_attrs(html),
+            vec!["/_astro/a.css", "/assets/x.js", "/logo.png"]
+        );
+    }
+
+    #[test]
+    fn unresolved_mount_refs_reports_only_missing_segments() {
+        let tmp = tempfile::TempDir::new().unwrap();
+        let out = tmp.path();
+        // Mount ships its own nested asset dir (self-ref: ignored) and refs
+        // /_astro (absent → reported) while /media exists (ignored).
+        let mount_dir = out.join("movies");
+        fs::create_dir_all(mount_dir.join("stats")).unwrap();
+        fs::create_dir_all(out.join("media")).unwrap();
+        fs::write(
+            mount_dir.join("index.html"),
+            r#"<link href="/_astro/Base.css"><a href="/movies/stats/a"><img src="/media/x.png">"#,
+        )
+        .unwrap();
+        fs::write(mount_dir.join("stats").join("a"), b"not html").unwrap();
+        let mounts = vec![crate::builder::MountCopy {
+            source: mount_dir.clone(),
+            path: "movies".into(),
+        }];
+        assert_eq!(
+            unresolved_mount_refs(out, &mounts),
+            vec![("movies".to_string(), vec!["/_astro/Base.css".to_string()])]
+        );
+    }
+
+    #[test]
+    fn unresolved_mount_refs_silent_when_all_segments_exist() {
+        let tmp = tempfile::TempDir::new().unwrap();
+        let out = tmp.path();
+        let mount_dir = out.join("blog");
+        fs::create_dir_all(&mount_dir).unwrap();
+        fs::create_dir_all(out.join("_astro")).unwrap();
+        fs::write(mount_dir.join("index.html"), r#"<link href="/_astro/Base.css">"#).unwrap();
+        let mounts = vec![crate::builder::MountCopy {
+            source: mount_dir.clone(),
+            path: "blog".into(),
+        }];
+        assert!(unresolved_mount_refs(out, &mounts).is_empty());
+    }
+
+    #[test]
+    fn file_mount_lands_at_named_path_after_wipe() {
+        let tmp = tempfile::TempDir::new().unwrap();
+        let legacy_root = tmp.path().join("legacy-root");
+        fs::create_dir_all(&legacy_root).unwrap();
+        fs::write(legacy_root.join("favicon.svg"), b"<svg/>").unwrap();
+        let media = tmp.path().join("media");
+
+        let output = BuildOutput::merge(Vec::new());
+        let mut inputs = BuildInputs::new("https://example.com", "paper", "shell", "seed");
+        inputs.mounts = vec![crate::builder::MountCopy {
+            source: legacy_root.join("favicon.svg"),
+            path: "favicon.svg".into(),
+        }];
+        let out_dir = tmp.path().join("out");
+        write_build_output(&output, &out_dir, &media, &inputs).unwrap();
+        assert_eq!(fs::read(out_dir.join("favicon.svg")).unwrap(), b"<svg/>");
     }
 }

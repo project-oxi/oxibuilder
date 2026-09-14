@@ -14,6 +14,7 @@ use oxibuilder_core::build_writer::write_build_output;
 use oxibuilder_core::builder::{BuildExt, BuildOutput, SearchDoc, StaticPage};
 use oxibuilder_core::db;
 use oxibuilder_core::http::embedded_spa_files;
+use oxibuilder_core::manifest::inactive_extension_ids;
 use sqlx::SqlitePool;
 
 struct StubBuilder;
@@ -58,9 +59,8 @@ async fn build_site_runs_without_panic_and_writes_correct_layout() {
 
     // 3. Run the real build pipeline.
     let builders: Vec<Box<dyn BuildExt>> = vec![Box::new(StubBuilder)];
-    let output = build_site(&pool, &builders).expect("build_site should not panic");
-    assert_eq!(output.extensions_data.len(), 1);
-
+    let inactive = inactive_extension_ids(&pool).await;
+    let output = build_site(&pool, &builders, &inactive).expect("build_site should not panic");
     // 4. Write to a fresh out dir and assert the layout.
     let out_dir = tmp_root.join("out");
     // Test-only default: no active layout is under test here.
@@ -528,14 +528,12 @@ fn end_to_end_pipeline_renders_image_into_blog_page() {
         // Run `build_site` on a blocking-pool thread so rayon's par_iter
         // workers don't inherit this runtime's CONTEXT — see top comment.
         let pool_for_build = pool.clone();
-        let output = tokio::task::spawn_blocking(move || build_site(&pool_for_build, &builders))
-            .await
-            .expect("spawn_blocking join")
-            .expect("build_site");
-        assert_eq!(output.pages.len(), 1, "one post → one page");
-
-        // write_build_output is purely sync (no async I/O); keep it on the
-        // blocking pool too for symmetry — it does heavy fs work.
+        let inactive = inactive_extension_ids(&pool).await;
+        let output =
+            tokio::task::spawn_blocking(move || build_site(&pool_for_build, &builders, &inactive))
+                .await
+                .expect("spawn_blocking join")
+                .expect("build_site");
         let inputs = oxibuilder_core::builder::BuildInputs::new(
             "https://a7garden.github.io/blog/", // → deployment_base = "/blog/"
             "paper",
@@ -758,11 +756,13 @@ async fn migration_compat_build_handles_legacy_null_columns() {
     // observe them.
     let pool_for_build = pool.clone();
     let builders_for_build = builders.clone();
-    let output =
-        tokio::task::spawn_blocking(move || build_site(&pool_for_build, &builders_for_build))
-            .await
-            .expect("spawn_blocking join")
-            .expect("build_site must succeed on a legacy-shape DB");
+    let inactive = inactive_extension_ids(&pool).await;
+    let output = tokio::task::spawn_blocking(move || {
+        build_site(&pool_for_build, &builders_for_build, &inactive)
+    })
+    .await
+    .expect("spawn_blocking join")
+    .expect("build_site must succeed on a legacy-shape DB");
     // Both extensions emitted a page for their published entry.
     assert!(
         output

@@ -100,6 +100,12 @@ pub async fn lobby_config_for(
 /// `site_name` / `base_url` are resolved by the caller — the live handler honors a runtime
 /// site override, while the build uses the config values directly (no override at build time).
 /// Extensions disabled or purged in `extension_state` are omitted, mirroring the route gate.
+///
+/// Path collisions: when a visible static mount is configured at the same path as an active
+/// extension (`mount.path == ext.id`, e.g. mounting legacy pages over `/movies`), the MOUNT
+/// wins the lobby card. `write_build_output` grafts mounts AFTER extension pages, so the
+/// mount's content is what actually serves at that path — the manifest must not advertise a
+/// card the static output does not honor.
 pub async fn assemble(
     db: &SqlitePool,
     config: &Config,
@@ -108,9 +114,19 @@ pub async fn assemble(
     extensions: &[Arc<dyn Extension>],
 ) -> Manifest {
     let layout = crate::theme::active_layout_id(db, &config.lobby.layout).await;
+    let mount_paths: std::collections::HashSet<String> = config
+        .mounts
+        .iter()
+        .filter(|m| !m.hidden)
+        .map(|m| m.path.trim().trim_matches('/').to_string())
+        .collect();
     let mut ext_list = Vec::with_capacity(extensions.len());
     for (idx, e) in extensions.iter().enumerate() {
-        if !is_active(db, e.id()).await {
+        if !extension_is_active(db, e.id()).await {
+            continue;
+        }
+        if mount_paths.contains(e.id()) {
+            tracing::debug!(ext = %e.id(), "lobby card claimed by static mount at the same path; mount wins");
             continue;
         }
         let lobby = lobby_config_for(db, config, e.id(), idx as i64).await;
@@ -141,7 +157,7 @@ pub async fn assemble(
 /// A missing row is treated as active: the build may run on a DB that has not yet been seeded
 /// (first boot seeds rows from `[extensions].enabled`), and silently dropping content there
 /// would be worse than including it. Once seeded, the row authoritatively gates inclusion.
-async fn is_active(db: &SqlitePool, ext_id: &str) -> bool {
+pub async fn extension_is_active(db: &SqlitePool, ext_id: &str) -> bool {
     let row: Option<(i64, i64)> =
         sqlx::query_as("SELECT enabled, purged FROM extension_state WHERE extension_id = ?")
             .bind(ext_id)
@@ -153,6 +169,24 @@ async fn is_active(db: &SqlitePool, ext_id: &str) -> bool {
         Some((enabled, purged)) => enabled != 0 && purged == 0,
         None => true,
     }
+}
+
+/// Batch inverse of [`extension_is_active`]: ids of extensions that have an
+/// `extension_state` row with `enabled = 0` or `purged = 1`. Ids absent from
+/// the table are NOT returned (missing row = active, same as the single check).
+///
+/// One query instead of N so the build pipeline can gate every builder with a
+/// single round-trip before fan-out.
+pub async fn inactive_extension_ids(db: &SqlitePool) -> std::collections::HashSet<String> {
+    let rows: Vec<(String, i64, i64)> =
+        sqlx::query_as("SELECT extension_id, enabled, purged FROM extension_state")
+            .fetch_all(db)
+            .await
+            .unwrap_or_default();
+    rows.into_iter()
+        .filter(|(_, enabled, purged)| *enabled == 0 || *purged != 0)
+        .map(|(id, _, _)| id)
+        .collect()
 }
 
 /// Map configured static mounts to their manifest representation. Pure

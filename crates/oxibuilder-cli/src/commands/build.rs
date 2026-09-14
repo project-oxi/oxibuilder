@@ -59,10 +59,11 @@ pub(crate) async fn build(c: BuildCommand) -> anyhow::Result<()> {
     .await
     .map_err(|e| anyhow::anyhow!("image pre-pass: {e}"))?;
 
-    // 4. Run build pipeline (manifest is now live in `BlogExtension`).
     let builder_refs: Vec<Box<dyn oxibuilder_core::builder::BuildExt>> =
         oxibuilder_console::all_builders_with_image_manifest(image_manifest.as_ref());
-    let output = oxibuilder_core::build::build_site(&pool, &builder_refs)
+    // Resolve the extension gate ONCE here (async context) — build_site is sync.
+    let inactive = oxibuilder_core::manifest::inactive_extension_ids(&pool).await;
+    let output = oxibuilder_core::build::build_site(&pool, &builder_refs, &inactive)
         .map_err(|e| anyhow::anyhow!("{}", e))?;
     // 5. Write output (sources SPA bundle from the embedded binary, not CWD).
     //    BuildInputs carries site.base_url (drives deployment_base) + theme_id

@@ -116,8 +116,8 @@ async fn build_handler(State(state): State<AppState>) -> Result<Json<serde_json:
     let config = &state.config;
     let out_dir = config.server.data_dir.join("out");
     let media_dir = config.server.data_dir.join("media");
-
-    let output = build_site(&state.db, &state.builders)
+    let inactive = crate::manifest::inactive_extension_ids(&state.db).await;
+    let output = build_site(&state.db, &state.builders, &inactive)
         .map_err(|e| ApiError::internal(anyhow::anyhow!("{}", e)))?;
 
     let theme_id = crate::theme::active_theme_id(&state.db).await;

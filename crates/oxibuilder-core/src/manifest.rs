@@ -160,6 +160,7 @@ async fn is_active(db: &SqlitePool, ext_id: &str) -> bool {
 pub fn manifest_mounts(mounts: &[crate::config::MountConfig]) -> Vec<ManifestMount> {
     mounts
         .iter()
+        .filter(|m| !m.hidden)
         .map(|m| ManifestMount {
             id: m.id.clone(),
             display_name: ManifestLocalized {
@@ -189,6 +190,8 @@ mod tests {
             description: Some("desc".into()),
             icon: None,
             open_in_new_tab: true,
+            hidden: false,
+            raw: false,
         }
     }
 
@@ -208,6 +211,15 @@ mod tests {
     fn manifest_mounts_normalizes_path() {
         let ms = manifest_mounts(&[mc("p", "/stuff/", "k", "e")]);
         assert_eq!(ms[0].path, "stuff");
+    }
+
+    #[test]
+    fn manifest_mounts_skips_hidden() {
+        let mut hid = mc("posters", "posters", "포스터", "Posters");
+        hid.hidden = true;
+        let ms = manifest_mounts(&[mc("blog", "blog", "블로그", "Blog"), hid]);
+        assert_eq!(ms.len(), 1);
+        assert_eq!(ms[0].id, "blog");
     }
 
     #[test]

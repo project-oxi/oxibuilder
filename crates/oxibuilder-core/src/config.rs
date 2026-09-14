@@ -18,6 +18,13 @@ pub struct MountConfig {
     pub icon: Option<String>,
     #[serde(default)]
     pub open_in_new_tab: bool,
+    /// true면 로비 매니페스트에서 제외 — 파일은 그대로 URL 서빙됨.
+    #[serde(default)]
+    pub hidden: bool,
+    /// true면 index.html 탐지를 건너뛰고 디렉터리를 통째로 복사한다
+    /// (포스터 묶음 등 정적 에셋 마운트용).
+    #[serde(default)]
+    pub raw: bool,
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -274,14 +281,14 @@ impl Config {
 
     /// Resolve each mount's `source` to an absolute path relative to `base`, then
     /// auto-detect the static build output under it. Drops the mount from
-    /// `self.mounts` when the source is a real directory but no static output is
-    /// detected — otherwise the downstream `copy_dir_recursive` would copy the
-    /// whole project root (node_modules, .git, src, …) into `out/{path}/`. Missing
-    /// sources are kept (existing behavior; the build will hard-error on copy).
+    /// detected — unless `raw` is set (raw mounts are copied as-is).
     pub fn resolve_mount_sources(&mut self, base: &Path) {
         self.mounts.retain_mut(|m| {
             if !m.source.is_absolute() {
                 m.source = base.join(&m.source);
+            }
+            if m.raw {
+                return true; // 통째로 복사 — 탐지 안 함
             }
             match detect_static_output(&m.source) {
                 Some(resolved) if resolved != m.source => {
@@ -454,6 +461,8 @@ description = "Hand-crafted work"
             description: None,
             icon: None,
             open_in_new_tab: false,
+            hidden: false,
+            raw: false,
         });
         assert!(cfg.validate_mounts().is_err());
     }
@@ -471,6 +480,8 @@ description = "Hand-crafted work"
                 description: None,
                 icon: None,
                 open_in_new_tab: false,
+                hidden: false,
+                raw: false,
             });
         }
         let err = cfg.validate_mounts().unwrap_err();
@@ -489,6 +500,8 @@ description = "Hand-crafted work"
             description: None,
             icon: None,
             open_in_new_tab: false,
+            hidden: false,
+            raw: false,
         });
         let base = std::path::Path::new("/srv/oxibuilder");
         cfg.resolve_mount_sources(base);
@@ -567,6 +580,8 @@ description = "Hand-crafted work"
             description: None,
             icon: None,
             open_in_new_tab: false,
+            hidden: false,
+            raw: false,
         });
         cfg.resolve_mount_sources(tmp.path());
         assert_eq!(cfg.mounts.len(), 1);
@@ -595,6 +610,8 @@ description = "Hand-crafted work"
             description: None,
             icon: None,
             open_in_new_tab: false,
+            hidden: false,
+            raw: false,
         });
         cfg.resolve_mount_sources(tmp.path());
         assert!(

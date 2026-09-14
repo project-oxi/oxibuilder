@@ -235,6 +235,8 @@ mod tests {
             description: Some("Documentation".into()),
             icon: Some("book".into()),
             open_in_new_tab: false,
+            hidden: false,
+            raw: false,
         });
 
         let server = cfg.server.clone();

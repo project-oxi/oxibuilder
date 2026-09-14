@@ -82,6 +82,8 @@ fn mount_copy_from_config_normalizes_path() {
         description: None,
         icon: None,
         open_in_new_tab: false,
+        hidden: false,
+        raw: false,
     };
     let copy = MountCopy::from_config(&mc);
     assert_eq!(copy.path, "portfolio", "leading/trailing slashes stripped");
@@ -115,6 +117,8 @@ fn write_build_output_does_not_copy_root_when_no_static_output_detected() {
         description: None,
         icon: None,
         open_in_new_tab: false,
+        hidden: false,
+        raw: false,
     });
     cfg.resolve_mount_sources(base);
 

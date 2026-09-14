@@ -15,6 +15,9 @@ import {
 } from "../../shared/ui/empty-state";
 
 function posterUrl(path: string | null, width: number) {
+  // Multi-segment absolute paths are local mounted refs ("/posters/x.jpg"),
+  // not raw TMDB paths — pass through without the image.tmdb.org prefix.
+  if (path && path.startsWith("/") && path.slice(1).includes("/")) return path;
   return path ? `https://image.tmdb.org/t/p/w${width}${path}` : null;
 }
 

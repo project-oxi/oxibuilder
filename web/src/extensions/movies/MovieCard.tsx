@@ -29,11 +29,15 @@ type Pick = (ko?: string | null, en?: string | null) => string;
 const EAGER_COUNT = 10;
 
 function posterUrl(path: string | null) {
-  // `w500` matches the Rust build's canonical width for the manifest key
+  if (!path) return null;
+  // Local refs (mounted static dirs, e.g. "/posters/x.jpg") pass through as-is;
+  // only raw TMDB paths (single segment) get the `w500` prefix, which matches
+  // the Rust build's canonical width for the manifest key
   // (`crates/oxibuilder-ext-movies/src/lib.rs::external_image_urls`); the SPA
   // must look up the same URL the build emitted. `srcset`/`sizes` below
   // handle responsive sizing for the actual rendered display.
-  return path ? `https://image.tmdb.org/t/p/w500${path}` : null;
+  if (path.startsWith("/") && path.slice(1).includes("/")) return path;
+  return `https://image.tmdb.org/t/p/w500${path}`;
 }
 
 function fmtRuntime(min: number | null): string | null {

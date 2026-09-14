@@ -581,6 +581,11 @@ impl BuildExt for MoviesExtension {
             .into_iter()
             .filter_map(|(p,)| p)
             .filter(|p| !p.is_empty())
+            // Multi-segment absolute paths are local mounted refs
+            // (e.g. "/posters/x.jpg") — served as-is by static mounts, not
+            // fetchable TMDB URLs. Skip them so optimize_external doesn't
+            // waste a per-URL timeout on each.
+            .filter(|p| !(p.starts_with('/') && p[1..].contains('/')))
             .map(|p| format!("{POSTER_BASE}{p}"))
             .collect())
     }

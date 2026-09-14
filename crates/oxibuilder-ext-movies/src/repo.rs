@@ -171,7 +171,7 @@ pub async fn list_entries(
     limit: i64,
     draft: bool,
 ) -> anyhow::Result<Vec<MovieEntry>> {
-    let limit = limit.clamp(1, 200);
+    let limit = limit.clamp(1, 1000);
     let published_clause = if draft {
         ""
     } else {

@@ -50,7 +50,7 @@ pub async fn list(
     limit: i64,
     draft: bool,
 ) -> anyhow::Result<Vec<Book>> {
-    let limit = limit.clamp(1, 200);
+    let limit = limit.clamp(1, 1000);
     let published_clause = if draft {
         ""
     } else {

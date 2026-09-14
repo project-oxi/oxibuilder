@@ -328,7 +328,7 @@ impl BuildExt for BooksExtension {
         db: &SqlitePool,
         rt: &tokio::runtime::Handle,
     ) -> Result<Vec<StaticPage>, Box<dyn Error + Send + Sync>> {
-        let books: Vec<model::Book> = rt.block_on(repo::list(db, None, 200, false))?;
+        let books: Vec<model::Book> = rt.block_on(repo::list(db, None, 1000, false))?;
         let mut pages = Vec::with_capacity(books.len());
         for b in &books {
             let excerpt: String = b
@@ -357,7 +357,7 @@ impl BuildExt for BooksExtension {
         db: &SqlitePool,
         rt: &tokio::runtime::Handle,
     ) -> Result<Box<dyn erased_serde::Serialize + Send>, Box<dyn Error + Send + Sync>> {
-        let books: Vec<model::Book> = rt.block_on(repo::list(db, None, 200, false))?;
+        let books: Vec<model::Book> = rt.block_on(repo::list(db, None, 1000, false))?;
         Ok(Box::new(books))
     }
 
@@ -366,7 +366,7 @@ impl BuildExt for BooksExtension {
         db: &SqlitePool,
         rt: &tokio::runtime::Handle,
     ) -> Result<Vec<SearchDoc>, Box<dyn Error + Send + Sync>> {
-        let books: Vec<model::Book> = rt.block_on(repo::list(db, None, 200, false))?;
+        let books: Vec<model::Book> = rt.block_on(repo::list(db, None, 1000, false))?;
         Ok(books
             .into_iter()
             .map(|b| {

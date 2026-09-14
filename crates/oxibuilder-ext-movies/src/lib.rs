@@ -499,7 +499,7 @@ impl BuildExt for MoviesExtension {
         db: &SqlitePool,
         rt: &tokio::runtime::Handle,
     ) -> Result<Vec<StaticPage>, Box<dyn Error + Send + Sync>> {
-        let details = rt.block_on(repo::list_entries_detail(db, 200, false))?;
+        let details = rt.block_on(repo::list_entries_detail(db, 1000, false))?;
         let mut pages = Vec::with_capacity(details.len());
         for d in &details {
             let title = d.entry.display_title();
@@ -531,7 +531,7 @@ impl BuildExt for MoviesExtension {
         rt: &tokio::runtime::Handle,
     ) -> Result<Box<dyn erased_serde::Serialize + Send>, Box<dyn Error + Send + Sync>> {
         // 장르·출연진·현지화 제목까지 포함된 상세를 내보낸다 (공개 SPA data/movies.json).
-        let details = rt.block_on(repo::list_entries_detail(db, 200, false))?;
+        let details = rt.block_on(repo::list_entries_detail(db, 1000, false))?;
         Ok(Box::new(details))
     }
 
@@ -540,7 +540,7 @@ impl BuildExt for MoviesExtension {
         db: &SqlitePool,
         rt: &tokio::runtime::Handle,
     ) -> Result<Vec<SearchDoc>, Box<dyn Error + Send + Sync>> {
-        let details = rt.block_on(repo::list_entries_detail(db, 200, false))?;
+        let details = rt.block_on(repo::list_entries_detail(db, 1000, false))?;
         Ok(details
             .into_iter()
             .map(|d| {

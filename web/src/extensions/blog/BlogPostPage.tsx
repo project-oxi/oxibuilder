@@ -71,7 +71,7 @@ export function BlogPostPage() {
       : undefined;
 
   return (
-    <div className="space-y-6">
+    <div className="mx-auto max-w-3xl space-y-6">
       <div className="flex items-center justify-between gap-4">
         <Button variant="ghost" size="sm" asChild className="-ml-2">
           <Link to="/blog">
@@ -89,7 +89,7 @@ export function BlogPostPage() {
         )}
       </div>
       {mySeries && (
-        <div className="rounded-lg border border-line bg-surface px-4 py-3 text-sm">
+        <div className="border-l-2 border-primary/50 pl-4 text-sm">
           <Link
             to={`/blog/series/${mySeries.slug}`}
             className="font-medium text-foreground underline-offset-4 hover:underline"
@@ -97,31 +97,35 @@ export function BlogPostPage() {
             {lang === "ko" ? "시리즈" : "Series"}: {mySeries.title}
           </Link>
           {typeof post.series_order === "number" && (
-            <span className="ml-2 text-subtle">
+            <span className="ml-2 tabular-nums text-subtle">
               {lang === "ko" ? `${post.series_order}화` : `#${post.series_order}`}
             </span>
-          )}
-          {(prev || next) && (
-            <div className="mt-2 flex justify-between gap-4 text-xs text-subtle">
-              {prev ? (
-                <Link to={`/blog/${prev.slug}`} className="hover:text-foreground">
-                  ← {prev.title}
-                </Link>
-              ) : (
-                <span />
-              )}
-              {next ? (
-                <Link to={`/blog/${next.slug}`} className="hover:text-foreground">
-                  {next.title} →
-                </Link>
-              ) : (
-                <span />
-              )}
-            </div>
           )}
         </div>
       )}
       <BlogPostView post={post} language={lang} />
+      {mySeries && (prev || next) && (
+        <nav className="border-t border-line pt-6 text-sm" aria-label={lang === "ko" ? "시리즈 내비게이션" : "Series navigation"}>
+          <div className="flex flex-col gap-3 sm:flex-row sm:justify-between">
+            {prev ? (
+              <Link to={`/blog/${prev.slug}`} className="group min-w-0 text-subtle transition-colors hover:text-foreground">
+                <span aria-hidden>← </span>
+                <span className="font-medium group-hover:text-primary">{prev.title}</span>
+              </Link>
+            ) : (
+              <span />
+            )}
+            {next ? (
+              <Link to={`/blog/${next.slug}`} className="group min-w-0 text-right text-subtle transition-colors hover:text-foreground sm:text-right">
+                <span className="font-medium group-hover:text-primary">{next.title}</span>
+                <span aria-hidden> →</span>
+              </Link>
+            ) : (
+              <span />
+            )}
+          </div>
+        </nav>
+      )}
     </div>
   );
 }

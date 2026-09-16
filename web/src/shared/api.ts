@@ -24,6 +24,8 @@ export interface LobbyConfigInfo {
 export interface ManifestExtension {
   id: string;
   display_name: LocalizedName;
+  /** Built-in lobby card copy; null for extensions without curated copy. */
+  description: LocalizedName | null;
   lobby: LobbyConfigInfo;
 }
 

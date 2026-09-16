@@ -78,6 +78,7 @@
   --color-text-secondary:   var(--p-neutral-700);
   --color-text-tertiary:    var(--p-neutral-500);
   --color-border:           var(--p-neutral-100);
+  --color-border-strong:    oklch(82% 0.008 265);
   --color-accent:           oklch(50% 0.14 var(--accent-hue));
   --color-accent-contrast:  oklch(100% 0 0);
   --color-rating-fill:      var(--p-gold-600);
@@ -140,6 +141,7 @@
   --color-text-secondary:   var(--p-neutral-300);
   --color-text-tertiary:    oklch(65% 0.012 265); /* override: neutral-500 fails AA on dark */
   --color-border:           oklch(28% 0.015 265);
+  --color-border-strong:    oklch(40% 0.015 265);
   --color-accent:           oklch(78% 0.12 var(--accent-hue));
   --color-accent-contrast:  var(--p-neutral-950);
   --color-rating-fill:      var(--p-gold-500);
@@ -247,6 +249,7 @@
   --color-muted:              var(--color-text-secondary);
   --color-subtle:             var(--color-text-tertiary);
   --color-line:               var(--color-border);
+  --color-line-strong:        var(--color-border-strong);
   --color-primary:            var(--color-accent);
   --color-primary-foreground: var(--color-accent-contrast);
   --color-star:               var(--color-rating-fill);

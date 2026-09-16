@@ -7,7 +7,7 @@ import { fetchManifest } from "./shared/api";
 import { Lobby } from "./lobby/Lobby";
 import { HubLobby } from "./lobby/HubLobby";
 import { ProfilePage } from "./extensions/profile/ProfilePage";
-import { LanguageProvider } from "./shared/language";
+import { LanguageProvider, useLanguage } from "./shared/language";
 import type { Lang } from "./shared/language";
 import { LangToggle } from "./shared/LangToggle";
 import { ThemeToggle } from "./shared/ThemeToggle";
@@ -70,9 +70,9 @@ const ActivityPage = lazy(() =>
 
 function PageFallback() {
   return (
-    <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-      {Array.from({ length: 6 }).map((_, i) => (
-        <Skeleton key={i} className="h-28" />
+    <div className="space-y-3">
+      {Array.from({ length: 4 }).map((_, i) => (
+        <Skeleton key={i} className="h-10" />
       ))}
     </div>
   );
@@ -208,7 +208,7 @@ function SiteRoutes({ layout }: { layout: Layout }) {
           </Suspense>
         }
       />
-      <Route path="*" element={<p className="text-subtle">404</p>} />
+      <Route path="*" element={<NotFoundPage />} />
     </Routes>
   );
 }
@@ -256,13 +256,31 @@ function Shell({ children }: { children: React.ReactNode }) {
           </Container>
         </header>
 
-        <main className="flex-1 py-8">
+        <main className="flex-1 py-10 sm:py-14">
           <Container>{children}</Container>
         </main>
 
         <SiteFooter siteName={siteName} />
       </div>
     </LanguageProvider>
+  );
+}
+
+function NotFoundPage() {
+  const { lang } = useLanguage();
+  return (
+    <div className="py-24 text-center">
+      <p className="font-serif text-6xl font-bold tracking-tight text-foreground">404</p>
+      <p className="mt-4 text-sm text-muted">
+        {lang === "ko" ? "페이지를 찾을 수 없습니다." : "Page not found."}
+      </p>
+      <Link
+        to="/"
+        className="mt-6 inline-block text-sm text-primary underline-offset-4 hover:underline"
+      >
+        {lang === "ko" ? "홈으로" : "Back home"}
+      </Link>
+    </div>
   );
 }
 

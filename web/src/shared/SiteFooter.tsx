@@ -1,8 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import type { ComponentType } from "react";
 import { Briefcase, Code, Globe, Mail } from "lucide-react";
-
-import { fetchProfile, type Profile } from "./api";
+import { fetchManifest, fetchProfile, type Profile } from "./api";
 import { Container } from "./ui/container";
 
 interface SiteFooterProps {
@@ -21,9 +20,11 @@ export function SiteFooter({ siteName }: SiteFooterProps) {
     queryKey: ["profile"],
     queryFn: fetchProfile,
   });
+  const { data: manifest } = useQuery({ queryKey: ["manifest"], queryFn: fetchManifest });
 
   const year = new Date().getFullYear();
-  const tagline = profile?.tagline_en ?? profile?.tagline_ko ?? null;
+  const tagline =
+    profile?.tagline_en ?? profile?.tagline_ko ?? manifest?.site.tagline ?? null;
 
   const links: SocialLink[] = [];
   if (profile?.email) {

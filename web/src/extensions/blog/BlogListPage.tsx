@@ -50,12 +50,18 @@ export function BlogListPage() {
   }, [posts, lang, category]);
 
   const categories = useMemo(() => {
-    const set = new Set<string>();
-    for (const p of posts ?? []) {
-      if (p.category) set.add(p.category);
+    // Count on the per-language view (translation groups collapse to one post),
+    // otherwise ko/en pairs of the same category show as duplicate chips.
+    const picked = posts ? pickPerLanguage(posts, lang) : [];
+    const counts = new Map<string, number>();
+    for (const p of picked) {
+      if (!p.category) continue;
+      counts.set(p.category, (counts.get(p.category) ?? 0) + 1);
     }
-    return [...set].sort();
-  }, [posts]);
+    return [...counts.entries()]
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([name, count]) => ({ name, count }));
+  }, [posts, lang]);
 
   if (isLoading) return <p className="text-subtle">…</p>;
   if (!posts || posts.length === 0) {
@@ -84,28 +90,29 @@ export function BlogListPage() {
       <PageTitle>{lang === "ko" ? "블로그" : "Blog"}</PageTitle>
       {categories.length > 0 && (
         <div className="flex flex-wrap gap-2">
-          {categories.map((c) => (
+          {categories.map(({ name, count }) => (
             <button
-              key={c}
+              key={name}
               type="button"
               onClick={() => {
                 const next = new URLSearchParams(params);
-                if (c === category) next.delete("category");
-                else next.set("category", c);
+                if (name === category) next.delete("category");
+                else next.set("category", name);
                 setParams(next, { replace: true });
               }}
-              className={`rounded-full border px-3 py-1 text-xs transition-colors ${
-                c === category
+              className={`rounded-md border px-3 py-1.5 text-xs transition-colors ${
+                name === category
                   ? "border-primary bg-primary text-primary-foreground"
-                  : "border-line text-muted hover:border-border-strong"
+                  : "border-line text-muted hover:border-line-strong hover:text-foreground"
               }`}
             >
-              {c}
+              {name}
+              <span className="ml-1.5 tabular-nums opacity-60">{count}</span>
             </button>
           ))}
         </div>
       )}
-      <ul className="space-y-3">
+      <ul className="divide-y divide-line border-y border-line">
         {shown.map((p) => (
           <BlogPostCard
             key={p.slug}

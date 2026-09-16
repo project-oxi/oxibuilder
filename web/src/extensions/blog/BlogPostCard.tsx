@@ -1,7 +1,5 @@
 import { Link } from "react-router";
 
-import { Card } from "../../shared/ui/card";
-
 export interface BlogPostCardData {
   slug: string;
   title: string;
@@ -10,22 +8,31 @@ export interface BlogPostCardData {
   category: string | null;
 }
 
+/**
+ * Editorial index row. The parent <ul> owns the hairline dividers
+ * (`divide-y divide-line border-y border-line`); this renders one entry:
+ * title + category on the baseline row, date + tags in small mono-spaced text.
+ */
 export function BlogPostCard({ post }: { post: BlogPostCardData }) {
+  const date = post.published_at?.slice(0, 10) ?? null;
   return (
-    <Card className="transition-[border-color,box-shadow] duration-200 hover:border-primary/40 hover:shadow-md">
-      <Link to={`/blog/${post.slug}`} className="block p-5 text-foreground no-underline">
-        <div className="flex items-start justify-between gap-3">
-          <h2 className="font-serif text-xl font-semibold tracking-tight">{post.title}</h2>
+    <li className="group">
+      <Link to={`/blog/${post.slug}`} className="block py-5 text-foreground no-underline">
+        <div className="flex items-baseline justify-between gap-4">
+          <h2 className="font-serif text-xl font-semibold tracking-tight transition-colors duration-200 group-hover:text-primary">
+            {post.title}
+          </h2>
           {post.category && (
-            <span className="shrink-0 rounded-full border border-line px-2 py-0.5 text-xs text-muted">
-              {post.category}
-            </span>
+            <span className="shrink-0 text-xs text-subtle">{post.category}</span>
           )}
         </div>
-        {post.tags.length > 0 && (
-          <p className="mt-2 text-xs text-muted">#{post.tags.join(" #")}</p>
-        )}
+        <p className="mt-1.5 text-xs tabular-nums text-subtle">
+          {date && <time>{date}</time>}
+          {post.tags.length > 0 && (
+            <span className={date ? "ml-3" : undefined}>#{post.tags.join(" #")}</span>
+          )}
+        </p>
       </Link>
-    </Card>
+    </li>
   );
 }

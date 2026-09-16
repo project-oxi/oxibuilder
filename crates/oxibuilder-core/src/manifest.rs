@@ -43,7 +43,34 @@ pub struct LobbyConfigInfo {
 pub struct ManifestExtension {
     pub id: String,
     pub display_name: ManifestLocalized,
+    /// Built-in one-line lobby card copy; `None` renders a name-only card.
+    pub description: Option<ManifestLocalized>,
     pub lobby: LobbyConfigInfo,
+}
+
+/// Curated lobby-card copy per known extension, mirroring the legacy Astro
+/// lobby's "title + one muted line" cards. Unknown extensions fall back to a
+/// name-only card rather than inventing copy.
+const EXT_DESCRIPTIONS: &[(&str, &str, &str)] = &[
+    ("profile", "이 공간의 소개", "About"),
+    ("blog", "글과 시리즈", "Writing & series"),
+    ("projects", "작업 기록", "Project log"),
+    ("links", "모아 둔 링크", "Curated links"),
+    ("novels", "집필 기록", "Fiction log"),
+    ("movies", "영화 감상 기록", "Movie log"),
+    ("books", "독서 기록", "Reading log"),
+    ("scraps", "짧은 기록", "Short notes"),
+    ("activity", "활동 기록", "Activity log"),
+];
+
+fn builtin_description(ext_id: &str) -> Option<ManifestLocalized> {
+    EXT_DESCRIPTIONS
+        .iter()
+        .find(|(id, _, _)| *id == ext_id)
+        .map(|(_, ko, en)| ManifestLocalized {
+            ko: ko.to_string(),
+            en: en.to_string(),
+        })
 }
 
 #[derive(Serialize)]
@@ -138,6 +165,7 @@ pub async fn assemble(
                 ko: e.display_name(Lang::Ko),
                 en: e.display_name(Lang::En),
             },
+            description: builtin_description(e.id()),
             lobby,
         });
     }
@@ -248,6 +276,14 @@ mod tests {
     fn manifest_mounts_normalizes_path() {
         let ms = manifest_mounts(&[mc("p", "/stuff/", "k", "e")]);
         assert_eq!(ms[0].path, "stuff");
+    }
+
+    #[test]
+    fn builtin_description_covers_known_extensions_only() {
+        let blog = builtin_description("blog").expect("blog has curated copy");
+        assert_eq!(blog.ko, "글과 시리즈");
+        assert_eq!(blog.en, "Writing & series");
+        assert!(builtin_description("mystery-ext").is_none());
     }
 
     #[test]

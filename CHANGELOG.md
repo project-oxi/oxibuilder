@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Built-in lobby card copy.** Manifest extension entries now carry curated ko/en one-liners (`EXT_DESCRIPTIONS` in `oxibuilder-core/src/manifest.rs`), so lobby cards render the legacy "title + muted line" pattern without per-site configuration; unknown extensions fall back to a name-only card.
 - **Blog series + categories.** `blog_series` table (migration 0002) with per-post category and series ordering; CLI `blog series new|list|show` plus `--category` / `--series` / `--order` / `--clear-series` on `blog new`/`blog edit`; console `/series` API; the static build emits series pages (only when published posts exist) and `build_data` returns `{posts, series}`; the SPA gains a series page, category filter, and series navigation; the admin BlogTab gains a category input.
 - **Post translations.** `blog new --translation-of <id>` links a post to its original's translation group (the group id is promoted from the original); list and post pages surface language switch links (ko/en).
 - **Raw + hidden mounts.** `[[mounts]]` gained `raw = true` (graft the directory as-is, skipping static-output detection — for asset bundles with no `index.html`) and `hidden = true` (exclude the mount from the lobby manifest).
@@ -17,7 +18,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **`[site].tagline` + lobby hero.** Optional one-liner under the site name; the public lobby renders a centered display-font hero (name + tagline) instead of a screen-reader-only title.
 - **Reduced-motion kills transitions.** Under `prefers-reduced-motion` every transition/animation collapses, so theme flips land instantly (also makes headless screenshots deterministic).
 
+### Changed
+- **Legacy-editorial public pages.** The public SPA adopts the Astro-era baseline language: lobby cards drop icon tiles and monospace path labels for quiet narrow-grid cards (display-font title + one description line, border-strong + surface tint on hover); blog list, series, and search render hairline index rows instead of boxed cards; blog posts render unboxed in a centered reading column (`.markdown-lg` prose scale, series prev/next as an article footer); profile renders a centered identity block and omits empty sections entirely; a real 404 page replaces bare text; page titles step up to display scale; the footer falls back to `[site].tagline` when the profile has no tagline.
+
 ### Fixed
+- **Base element styles are layered now.** `global.css` element rules moved into `@layer base` — the previously unlayered `a { color: accent }` outranked Tailwind's utilities layer, so `.text-foreground` on an anchor silently resolved to the accent color.
 - **Disabled extensions no longer emit static output.** The build pipeline ignored `extension_state`; disabled extensions still wrote pages, data, and search docs, silently mixing with static mounts grafted over the same path (legacy `/movies` list page + native `movies/{slug}` detail shells). `build_site` / `build_site_with_progress` now gate every builder by the same `extension_state` the live route dispatcher applies (batch `manifest::inactive_extension_ids`, resolved by callers on an async context), and the image pre-pass skips disabled extensions' external URLs.
 - **Lobby card duplication on path collisions.** When an active extension and a visible static mount share a path, the manifest now emits only the mount card — mounts graft after extension pages in `write_build_output`, so the mount owns the serving path.
 - **GitHub Pages silently dropped `_`-prefixed output.** Without a `.nojekyll` marker, Pages runs Jekyll, which discards every `_`-prefixed directory — a legacy `/_astro` asset mount 404'd in production while the local build was fine. `write_build_output` now emits an empty `.nojekyll` at the output root (harmless on non-Pages hosts).

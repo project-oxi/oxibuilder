@@ -5,9 +5,7 @@ import { SearchIcon } from "lucide-react";
 
 import { searchAll } from "../shared/api";
 import { useLanguage } from "../shared/language";
-import { Badge } from "../shared/ui/badge";
 import { Button } from "../shared/ui/button";
-import { Card } from "../shared/ui/card";
 import { Input } from "../shared/ui/input";
 import { PageTitle } from "../shared/ui/page-header";
 
@@ -67,28 +65,24 @@ export function SearchPage() {
       )}
 
       {hits && hits.length > 0 && (
-        <ul className="space-y-3">
+        <ul className="divide-y divide-line border-y border-line">
           {hits.map((h, i) => (
-            <li key={`${h.extension_id}-${h.doc_id}-${i}`}>
-              <Card className="transition-[border-color,box-shadow] duration-200 hover:border-primary/40 hover:shadow-md">
-                <Link
-                  to={docUrl(h.extension_id, h.doc_id)}
-                  className="block p-4 text-foreground no-underline"
-                >
-                  <div className="mb-1 flex items-baseline gap-2">
-                    <Badge variant="secondary" className="uppercase tracking-wide">
-                      {h.extension_id}
-                    </Badge>
-                    <h2 className="text-base font-medium text-foreground">
-                      {h.title}
-                    </h2>
-                  </div>
-                  <p
-                    className="text-sm text-muted"
-                    dangerouslySetInnerHTML={{ __html: h.snippet }}
-                  />
-                </Link>
-              </Card>
+            <li key={`${h.extension_id}-${h.doc_id}-${i}`} className="group">
+              <Link
+                to={docUrl(h.extension_id, h.doc_id)}
+                className="block py-5 text-foreground no-underline"
+              >
+                <p className="text-[10px] font-medium uppercase tracking-widest text-subtle">
+                  {h.extension_id}
+                </p>
+                <h2 className="mt-1 font-serif text-lg font-semibold tracking-tight transition-colors duration-200 group-hover:text-primary">
+                  {h.title}
+                </h2>
+                <p
+                  className="mt-1 text-sm text-muted"
+                  dangerouslySetInnerHTML={{ __html: h.snippet }}
+                />
+              </Link>
             </li>
           ))}
         </ul>

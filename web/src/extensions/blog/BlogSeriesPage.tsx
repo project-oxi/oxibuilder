@@ -5,7 +5,6 @@ import { Link, useParams } from "react-router";
 import { fetchBlogSeriesBySlug } from "../../shared/api";
 import { useLanguage } from "../../shared/language";
 import { Button } from "../../shared/ui/button";
-import { Card, CardContent } from "../../shared/ui/card";
 
 export function BlogSeriesPage() {
   const { slug = "" } = useParams();
@@ -34,7 +33,7 @@ export function BlogSeriesPage() {
   }
 
   return (
-    <article className="space-y-6">
+    <article className="space-y-8">
       <Button variant="ghost" size="sm" asChild className="-ml-2">
         <Link to="/blog">
           <ArrowLeft />
@@ -42,31 +41,36 @@ export function BlogSeriesPage() {
         </Link>
       </Button>
       <header className="space-y-2">
-        <p className="text-sm text-subtle">{lang === "ko" ? "시리즈" : "Series"}</p>
-        <h1 className="font-serif text-3xl font-semibold tracking-tight text-foreground">
+        <p className="text-xs font-medium uppercase tracking-widest text-subtle">
+          {lang === "ko" ? "시리즈" : "Series"}
+        </p>
+        <h1 className="font-serif text-4xl font-bold tracking-tight text-foreground">
           {series.title}
         </h1>
-        {series.description && <p className="text-subtle">{series.description}</p>}
-        <p className="text-sm text-subtle">
+        {series.description && <p className="text-muted">{series.description}</p>}
+        <p className="text-sm tabular-nums text-subtle">
           {lang === "ko" ? `${series.posts.length}편` : `${series.posts.length} posts`}
         </p>
       </header>
-      <ol className="space-y-3">
+      <ol className="divide-y divide-line border-y border-line">
         {series.posts.map((p, i) => (
-          <li key={p.slug}>
-            <Card className="transition-[border-color,box-shadow] duration-200 hover:border-primary/40 hover:shadow-md">
-              <Link to={`/blog/${p.slug}`} className="block p-5 text-foreground no-underline">
-                <div className="flex items-baseline gap-3">
-                  <span className="font-serif text-lg text-subtle">
-                    {typeof p.series_order === "number" ? p.series_order : i + 1}.
-                  </span>
-                  <h2 className="font-serif text-xl font-semibold tracking-tight">{p.title}</h2>
-                </div>
-                <p className="mt-1 text-xs text-subtle">
+          <li key={p.slug} className="group">
+            <Link
+              to={`/blog/${p.slug}`}
+              className="flex items-baseline gap-4 py-5 text-foreground no-underline"
+            >
+              <span className="w-6 shrink-0 text-sm tabular-nums text-subtle">
+                {typeof p.series_order === "number" ? p.series_order : i + 1}
+              </span>
+              <span className="min-w-0">
+                <h2 className="font-serif text-xl font-semibold tracking-tight transition-colors duration-200 group-hover:text-primary">
+                  {p.title}
+                </h2>
+                <span className="mt-1 block text-xs tabular-nums text-subtle">
                   {(p.published_at ?? p.created_at).slice(0, 10)}
-                </p>
-              </Link>
-            </Card>
+                </span>
+              </span>
+            </Link>
           </li>
         ))}
       </ol>

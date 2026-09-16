@@ -25,11 +25,17 @@ export function BarRow({ name, count, max }: { name: string; count: number; max:
 export function SummaryBand({
   items,
 }: {
-  items: { label: string; value: string | number }[];
+  items: { label: string; value: string | number | null }[];
 }) {
+  // 데이터가 없는 차원(0 또는 null)은 카드째로 숨긴다 — "0 국가" 같은
+  // 빈 요약이 페이지를 채우지 않도록 한다.
+  const shown = items.filter(
+    (it): it is { label: string; value: string | number } =>
+      it.value !== null && it.value !== 0,
+  );
   return (
     <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-6">
-      {items.map((it) => (
+      {shown.map((it) => (
         <div key={it.label} className="rounded-lg border border-line bg-canvas p-3">
           <div className="text-2xl font-semibold tabular-nums text-foreground">{it.value}</div>
           <div className="text-xs text-subtle">{it.label}</div>

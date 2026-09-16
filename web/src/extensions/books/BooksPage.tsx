@@ -110,15 +110,19 @@ export function BooksPage() {
 
   return (
     <article className="space-y-6">
-      <div className="flex items-end justify-between gap-4">
+      <header className="space-y-1.5">
         <PageTitle>{ko ? "책" : "Books"}</PageTitle>
-        <div className="flex items-center gap-4 pb-2 text-sm text-subtle">
-          <span>{filtered.length}</span>
-          <Link to="/books/stats" className="transition-colors hover:text-foreground">
-            {ko ? "통계" : "Stats"}
-          </Link>
-        </div>
-      </div>
+        <p className="text-sm text-muted">
+          {ko ? `${books.length}권의 기록` : `${books.length} books`}
+        </p>
+        <Link
+          to="/books/stats"
+          className="inline-flex items-center gap-0.5 text-sm text-primary hover:underline"
+        >
+          {ko ? "통계 보기" : "Statistics"}
+          <span aria-hidden>›</span>
+        </Link>
+      </header>
 
       {/* Filter bar */}
       <div className="flex flex-wrap items-center gap-2">
@@ -136,14 +140,15 @@ export function BooksPage() {
             key={s}
             type="button"
             onClick={() => setStatus(status === s ? null : s)}
-            className={
-              "rounded-full border px-3 py-1 text-sm transition-colors " +
-              (status === s
-                ? "border-primary bg-primary/10 text-foreground"
-                : "border-line text-subtle hover:text-foreground")
-            }
+            className={cn(
+              "rounded-md border px-3 py-1.5 text-xs font-medium transition-colors",
+              status === s
+                ? "border-primary bg-primary text-primary-foreground"
+                : "border-line text-muted hover:border-line-strong hover:text-foreground",
+            )}
           >
-            {statusLabel(s, ko)} <span className="text-subtle">{statusCounts.get(s)}</span>
+            {statusLabel(s, ko)}{" "}
+            <span className="tabular-nums opacity-60">{statusCounts.get(s)}</span>
           </button>
         ))}
         <select
@@ -163,9 +168,22 @@ export function BooksPage() {
         )}
       </div>
 
-      {/* 카테고리 칩 — mirrors MoviesPage genre chips (rounded-full border, active state) */}
+      {/* 카테고리 칩 — legacy rounded-md facet chips */}
       {categoryCounts.length > 0 && (
         <div className="flex flex-wrap gap-1.5">
+          <button
+            type="button"
+            onClick={() => setCategory(null)}
+            className={cn(
+              "rounded-md border px-3 py-1.5 text-xs font-medium transition-colors",
+              category === null
+                ? "border-primary bg-primary text-primary-foreground"
+                : "border-line text-muted hover:border-line-strong hover:text-foreground",
+            )}
+          >
+            {ko ? "전체" : "All"}{" "}
+            <span className="tabular-nums opacity-60">{books.length}</span>
+          </button>
           {categoryCounts.map((c) => {
             const active = category === c.name;
             return (
@@ -174,13 +192,13 @@ export function BooksPage() {
                 type="button"
                 onClick={() => setCategory(active ? null : c.name)}
                 className={cn(
-                  "rounded-full border px-2.5 py-1 text-xs transition-colors",
+                  "rounded-md border px-3 py-1.5 text-xs font-medium transition-colors",
                   active
-                    ? "border-primary bg-primary/10 text-primary"
-                    : "border-line text-subtle hover:border-primary/40 hover:text-foreground",
+                    ? "border-primary bg-primary text-primary-foreground"
+                    : "border-line text-muted hover:border-line-strong hover:text-foreground",
                 )}
               >
-                {c.name} <span className="text-muted">{c.count}</span>
+                {c.name} <span className="tabular-nums opacity-60">{c.count}</span>
               </button>
             );
           })}
@@ -202,7 +220,7 @@ export function BooksPage() {
       {filtered.length === 0 ? (
         <p className="text-subtle">{ko ? "결과가 없습니다." : "No matches."}</p>
       ) : (
-        <ul className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        <ul className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
           {filtered.map((b, i) => (
             <li key={b.id}>
               <BookCard
@@ -212,12 +230,9 @@ export function BooksPage() {
                   title: b.title,
                   author: b.author,
                   cover_image_url: b.cover_image_url,
-                  rating: b.rating,
-                  review_ko: b.review_ko,
-                  review_en: b.review_en,
-                  status: b.status,
+                  category: b.category ?? null,
+                  published_year: b.published_at?.slice(0, 4) ?? null,
                 }}
-                pick={pick}
               />
             </li>
           ))}

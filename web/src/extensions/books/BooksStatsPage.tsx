@@ -54,7 +54,7 @@ export function BooksStatsPage() {
         items={[
           { label: ko ? "총 권수" : "Books", value: stats.total },
           { label: ko ? "저자" : "Authors", value: stats.authorCount },
-          { label: ko ? "평균 평점" : "Avg rating", value: stats.ratingMean ? stats.ratingMean.toFixed(1) : "—" },
+          { label: ko ? "평균 평점" : "Avg rating", value: stats.ratingMean ? stats.ratingMean.toFixed(1) : null },
           { label: ko ? "연도" : "Years", value: yearRange },
         ]}
       />

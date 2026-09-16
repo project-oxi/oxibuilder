@@ -329,7 +329,15 @@ impl BuildExt for BooksExtension {
         rt: &tokio::runtime::Handle,
     ) -> Result<Vec<StaticPage>, Box<dyn Error + Send + Sync>> {
         let books: Vec<model::Book> = rt.block_on(repo::list(db, None, 1000, false))?;
-        let mut pages = Vec::with_capacity(books.len());
+        let mut pages = Vec::with_capacity(books.len() + 1);
+        // SPA route /books/stats is linked from the list header — emit its shell.
+        pages.push(StaticPage {
+            path: "books/stats/index.html".into(),
+            content: r#"<!DOCTYPE html><html lang="ko"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0">
+    <title>독서 통계</title><meta property="og:title" content="독서 통계">
+    <meta property="og:type" content="website"><meta property="og:url" content="/books/stats/">
+    <link rel="canonical" href="/books/stats/"></head><body><div id="root"></div><script src="/assets/index.js"></script></body></html>"#.to_string(),
+        });
         for b in &books {
             let excerpt: String = b
                 .review_ko

@@ -500,7 +500,15 @@ impl BuildExt for MoviesExtension {
         rt: &tokio::runtime::Handle,
     ) -> Result<Vec<StaticPage>, Box<dyn Error + Send + Sync>> {
         let details = rt.block_on(repo::list_entries_detail(db, 1000, false))?;
-        let mut pages = Vec::with_capacity(details.len());
+        let mut pages = Vec::with_capacity(details.len() + 1);
+        // SPA route /movies/stats is linked from the list header — emit its shell.
+        pages.push(StaticPage {
+            path: "movies/stats/index.html".into(),
+            content: r#"<!DOCTYPE html><html lang="ko"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0">
+    <title>영화·드라마 통계</title><meta property="og:title" content="영화·드라마 통계">
+    <meta property="og:type" content="website"><meta property="og:url" content="/movies/stats/">
+    <link rel="canonical" href="/movies/stats/"></head><body><div id="root"></div><script src="/assets/index.js"></script></body></html>"#.to_string(),
+        });
         for d in &details {
             let title = d.entry.display_title();
             let excerpt: String = d

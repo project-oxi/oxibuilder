@@ -34,8 +34,15 @@ export function MovieDetailPage() {
   const ko = lang === "ko";
   const { data: movies, isLoading } = useQuery({ queryKey: ["movies"], queryFn: fetchMovies });
 
-  if (isLoading) return <p className="text-subtle">…</p>;
   const movie = movies?.find((m) => m.slug === slug);
+  // Hooks must run unconditionally — this page previously called
+  // useOptimizedImage after the not-found early return, crashing the tree
+  // whenever a detail shell hydrated.
+  const poster = movie ? posterUrl(movie.poster_path, 500) : null;
+  const optimized = useOptimizedImage(poster);
+  const variant = optimized ? pickVariant(optimized) : null;
+
+  if (isLoading) return <p className="text-subtle">…</p>;
 
   if (!movie) {
     return (
@@ -57,9 +64,6 @@ export function MovieDetailPage() {
   }
 
   const title = pick(movie.title_ko, movie.title_en) || movie.title;
-  const poster = posterUrl(movie.poster_path, 500);
-  const optimized = useOptimizedImage(poster);
-  const variant = optimized ? pickVariant(optimized) : null;
   const runtime = fmtRuntime(movie.runtime_min);
   const synopsis = pick(movie.review_ko, movie.review_en);
 
@@ -102,11 +106,11 @@ export function MovieDetailPage() {
             <span>{movie.media_type === "tv" ? (ko ? "드라마" : "TV") : ko ? "영화" : "Film"}</span>
             {runtime && <span>{runtime}</span>}
           </div>
-          <RatingStars value={movie.rating} />
+          {movie.rating > 0 && <RatingStars value={movie.rating} />}
           {movie.genres.length > 0 && (
             <div className="flex flex-wrap gap-1.5">
               {movie.genres.map((g) => (
-                <span key={g.name_en} className="rounded-full border border-line bg-surface px-2.5 py-0.5 text-xs text-muted">
+                <span key={g.name_en} className="rounded-md border border-line bg-surface px-2.5 py-0.5 text-xs text-muted">
                   {pick(g.name_ko, g.name_en) || g.name_en}
                 </span>
               ))}

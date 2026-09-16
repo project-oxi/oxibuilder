@@ -58,8 +58,8 @@ export function MoviesStatsPage() {
           { label: ko ? "배우" : "Actors", value: stats.actorCount },
           { label: ko ? "국가" : "Countries", value: stats.nationCount },
           { label: ko ? "연도" : "Years", value: yearRange },
-          { label: ko ? "평균 러닝타임" : "Avg runtime", value: stats.avgRuntime ? `${Math.round(stats.avgRuntime)}${ko ? "분" : "m"}` : "—" },
-          { label: ko ? "평균 평점" : "Avg rating", value: stats.ratingMean ? stats.ratingMean.toFixed(1) : "—" },
+          { label: ko ? "평균 러닝타임" : "Avg runtime", value: stats.avgRuntime ? `${Math.round(stats.avgRuntime)}${ko ? "분" : "m"}` : null },
+          { label: ko ? "평균 평점" : "Avg rating", value: stats.ratingMean ? stats.ratingMean.toFixed(1) : null },
         ]}
       />
 

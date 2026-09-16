@@ -1,5 +1,6 @@
 import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
+import { Link } from "react-router";
 import { Film, Search, X } from "lucide-react";
 
 import { fetchMovies, type MovieEntry, type MovieGenre, type MoviePerson } from "../../shared/api";
@@ -124,9 +125,12 @@ export function MoviesPage() {
   }, [movies, query, mediaType, genre, year, personId, sort, pick, lang]);
 
   const hasFilters = !!query || mediaType !== "all" || genre || year != null || personId != null;
+  // 매체 토글은 두 매체가 모두 존재할 때만 의미가 있다 — 단일 타입 컬렉션에서는
+  // "드라마 0" 같은 죽은 필터를 만들지 않는다 (facets와 같은 데이터 기반 규칙).
+  const hasBothMediaTypes =
+    !!movies?.some((m) => m.media_type === "tv") && !!movies?.some((m) => m.media_type === "movie");
 
   const clearAll = () => {
-    setQuery("");
     setMediaType("all");
     setGenre(null);
     setYear(null);
@@ -162,13 +166,19 @@ export function MoviesPage() {
 
   return (
     <article className="space-y-6">
-      <div className="flex items-baseline justify-between gap-4">
+      <header className="space-y-1.5">
         <PageTitle>{titleText}</PageTitle>
-        <span className="text-sm text-subtle">
-          {filtered.length}
-          {lang === "ko" ? "편" : ` of ${movies.length}`}
-        </span>
-      </div>
+        <p className="text-sm text-muted">
+          {lang === "ko" ? `${movies.length}편의 기록` : `${movies.length} records`}
+        </p>
+        <Link
+          to="/movies/stats"
+          className="inline-flex items-center gap-0.5 text-sm text-primary hover:underline"
+        >
+          {lang === "ko" ? "통계 보기" : "Statistics"}
+          <span aria-hidden>›</span>
+        </Link>
+      </header>
 
       {/* 검색 + 정렬 */}
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
@@ -196,33 +206,35 @@ export function MoviesPage() {
 
       {/* 매체 + 연도 + 배우 */}
       <div className="flex flex-wrap items-center gap-2">
-        <div className="inline-flex rounded-md border border-line p-0.5">
-          {(["all", "movie", "tv"] as MediaType[]).map((t) => (
-            <button
-              key={t}
-              type="button"
-              onClick={() => setMediaType(t)}
-              className={cn(
-                "rounded px-2.5 py-1 text-xs font-medium transition-colors",
-                mediaType === t
-                  ? "bg-primary text-primary-foreground"
-                  : "text-subtle hover:text-foreground",
-              )}
-            >
-              {t === "all"
-                ? lang === "ko"
-                  ? "전체"
-                  : "All"
-                : t === "movie"
+        {hasBothMediaTypes && (
+          <div className="inline-flex rounded-md border border-line p-0.5">
+            {(["all", "movie", "tv"] as MediaType[]).map((t) => (
+              <button
+                key={t}
+                type="button"
+                onClick={() => setMediaType(t)}
+                className={cn(
+                  "rounded px-2.5 py-1 text-xs font-medium transition-colors",
+                  mediaType === t
+                    ? "bg-primary text-primary-foreground"
+                    : "text-subtle hover:text-foreground",
+                )}
+              >
+                {t === "all"
                   ? lang === "ko"
-                    ? "영화"
-                    : "Movies"
-                  : lang === "ko"
-                    ? "드라마"
-                    : "TV"}
-            </button>
-          ))}
-        </div>
+                    ? "전체"
+                    : "All"
+                  : t === "movie"
+                    ? lang === "ko"
+                      ? "영화"
+                      : "Movies"
+                    : lang === "ko"
+                      ? "드라마"
+                      : "TV"}
+              </button>
+            ))}
+          </div>
+        )}
 
         <select
           className={selectCls}
@@ -256,6 +268,19 @@ export function MoviesPage() {
       {/* 장르 칩 */}
       {facets.genres.length > 0 && (
         <div className="flex flex-wrap gap-1.5">
+          <button
+            type="button"
+            onClick={() => setGenre(null)}
+            className={cn(
+              "rounded-md border px-3 py-1.5 text-xs font-medium transition-colors",
+              genre === null
+                ? "border-primary bg-primary text-primary-foreground"
+                : "border-line text-muted hover:border-line-strong hover:text-foreground",
+            )}
+          >
+            {lang === "ko" ? "전체" : "All"}{" "}
+            <span className="tabular-nums opacity-60">{movies.length}</span>
+          </button>
           {facets.genres.map(({ genre: g, count }) => {
             const active = genre === g.name_en;
             return (
@@ -264,14 +289,14 @@ export function MoviesPage() {
                 type="button"
                 onClick={() => setGenre(active ? null : g.name_en)}
                 className={cn(
-                  "rounded-full border px-2.5 py-1 text-xs transition-colors",
+                  "rounded-md border px-3 py-1.5 text-xs font-medium transition-colors",
                   active
-                    ? "border-primary bg-primary/10 text-primary"
-                    : "border-line text-subtle hover:border-primary/40 hover:text-foreground",
+                    ? "border-primary bg-primary text-primary-foreground"
+                    : "border-line text-muted hover:border-line-strong hover:text-foreground",
                 )}
               >
                 {genreLabel(g, pick)}{" "}
-                <span className="text-muted">{count}</span>
+                <span className="tabular-nums opacity-60">{count}</span>
               </button>
             );
           })}
@@ -319,7 +344,7 @@ export function MoviesPage() {
           </EmptyStateDescription>
         </EmptyState>
       ) : (
-        <ul className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        <ul className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
           {filtered.map((m, i) => (
             <li key={m.id}>
               <MovieCard
@@ -333,13 +358,8 @@ export function MoviesPage() {
                   media_type: m.media_type === "tv" ? "tv" : "movie",
                   poster_path: m.poster_path,
                   release_year: m.release_year,
-                  runtime_min: m.runtime_min,
-                  rating: m.rating,
-                  review_ko: m.review_ko,
-                  review_en: m.review_en,
-                  rewatch: !!m.rewatch,
                   genres: m.genres,
-                  cast: m.cast,
+                  directors: m.directors,
                 }}
                 pick={pick}
                 lang={lang}
